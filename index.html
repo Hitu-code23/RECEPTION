@@ -1245,8 +1245,45 @@ function showResult(type, icon, title, detail) {
     <div class="result-title">${title}</div>
     ${detail}
   </div>`;
+  
+  // Visual feedback on the scanner frame
+  const frame = document.getElementById('scanner-frame');
+  if (frame) {
+    frame.style.borderColor = type === 'success' ? 'var(--green)' : (type === 'used' ? 'var(--amber)' : 'var(--red)');
+    setTimeout(() => {
+      if (scannerRunning) frame.style.borderColor = 'var(--gold)';
+      else frame.style.borderColor = 'var(--border2)';
+    }, 2000);
+  }
+
+  // Audio feedback
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    if (type === 'success') {
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start(); osc.stop(ctx.currentTime + 0.2);
+    } else {
+      osc.frequency.setValueAtTime(220, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+      osc.start(); osc.stop(ctx.currentTime + 0.4);
+    }
+  } catch(e) {}
+
+  // Haptic feedback if supported
+  if (window.navigator && window.navigator.vibrate) {
+    window.navigator.vibrate(type === 'success' ? 100 : [100, 50, 100]);
+  }
+
   clearTimeout(showResult._t);
-  showResult._t = setTimeout(() => { if (area) area.innerHTML = ''; }, 5000);
+  showResult._t = setTimeout(() => { if (area) area.innerHTML = ''; }, 8000);
 }
 
 function renderRecentLog() {
