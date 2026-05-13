@@ -681,8 +681,8 @@ body {
       <input type="text" id="set-event-date" placeholder="e.g. May 24, 2024" />
     </div>
     <div class="field">
-      <label>Admin PIN (4 digits)</label>
-      <input type="password" id="set-admin-pin" maxlength="4" placeholder="Leave empty for no PIN" />
+      <label>Admin PIN (6 digits)</label>
+      <input type="password" id="set-admin-pin" maxlength="6" placeholder="Leave empty for no PIN" />
     </div>
     <div class="field">
       <label>Event Profile</label>
@@ -716,7 +716,7 @@ body {
 let currentProfile = localStorage.getItem('rxp_current_profile') || 'default';
 let guests = JSON.parse(localStorage.getItem('rxp_guests_' + currentProfile) || '[]');
 let admLog  = JSON.parse(localStorage.getItem('rxp_log_' + currentProfile)   || '[]');
-let settings = JSON.parse(localStorage.getItem('rxp_settings_' + currentProfile) || '{"name":"Reception Elite","date":"Guest Verification","pin":"","photo":true}');
+let settings = JSON.parse(localStorage.getItem('rxp_settings_' + currentProfile) || '{"name":"Reception Elite","date":"Guest Verification","pin":"788862","photo":true}');
 
 let scanner = null, scannerRunning = false;
 let currentModalGuest = null;
