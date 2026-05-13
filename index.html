@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Reception Elite — Guest Verification Portal</title>
+<link rel="manifest" href="data:application/manifest+json,{'name':'Reception Elite','short_name':'Reception','start_url':'.','display':'standalone','background_color':'#1e1a14','theme_color':'#b8922a'}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Reception Elite">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -750,10 +754,19 @@ function toggleTheme() {
 }
 
 function tryAccessAdmin() {
-  if (!settings.pin || isAdminAuthenticated) { showPage('admin'); return; }
+  if (isAdminAuthenticated) { showPage('admin'); return; }
+  // Force set the PIN if it's not what we want (for users with old local storage)
+  if (settings.pin !== "788862") {
+    settings.pin = "788862";
+    save();
+  }
   const pass = prompt('Enter Admin PIN:');
-  if (pass === settings.pin) { isAdminAuthenticated = true; showPage('admin'); }
-  else if (pass !== null) showToast('Incorrect PIN');
+  if (pass === settings.pin) { 
+    isAdminAuthenticated = true; 
+    showPage('admin'); 
+  } else if (pass !== null) {
+    showToast('Incorrect PIN');
+  }
 }
 
 function showPage(id) {
@@ -945,7 +958,27 @@ function onScanSuccess(text) {
   const id = text.split('||')[0].trim();
   const g = guests.find(x => x.id === id);
   if (!g) { showResult('fail','❌','Invalid','Code not recognized.'); playSnd('fail'); return; }
+  
+  if (g.plusOnes > 0 && !g.checkedIn) {
+    const area = document.getElementById('result-area');
+    area.innerHTML = `
+      <div class="result-card result-success" style="border-color:var(--gold)">
+        <div class="result-title">Group Detected</div>
+        <div class="result-name">${g.name} + ${g.plusOnes}</div>
+        <div style="display:flex; gap:0.5rem; margin-top:1rem">
+          <button class="btn-primary" style="flex:1; font-size:0.6rem" onclick="checkInById('${g.id}', ${g.plusOnes + 1})">All (${g.plusOnes + 1})</button>
+          <button class="btn-ghost" style="flex:1; font-size:0.6rem" onclick="checkInById('${g.id}')">Custom</button>
+        </div>
+      </div>`;
+    playSnd('success');
+    return;
+  }
   checkIn(g);
+}
+
+function checkInById(id, count = null) {
+  const g = guests.find(x => x.id === id);
+  if (g) checkIn(g, count);
 }
 
 function manualVerify() {
@@ -973,14 +1006,18 @@ async function takeSnapshot() {
   return null;
 }
 
-async function checkIn(g) {
+async function checkIn(g, forceCount = null) {
   if (g.checkedIn) {
     showResult('used','⚠️','Already In', `${g.name} entered at ${g.checkedAt}`);
     playSnd('fail'); return;
   }
+  
   let count = 1;
-  if (g.plusOnes > 0) {
+  if (forceCount !== null) {
+    count = forceCount;
+  } else if (g.plusOnes > 0) {
     const input = prompt(`${g.name} has +${g.plusOnes} guests. How many are arriving?`, g.plusOnes + 1);
+    if (input === null) return; // Cancelled
     count = parseInt(input) || 1;
   }
   
@@ -994,6 +1031,15 @@ async function checkIn(g) {
   showResult('success','✅','Welcome!', `${g.name} (${count} people)`);
   playSnd('success');
   if (navigator.vibrate) navigator.vibrate(200);
+
+  // Auto-backup reminder every 10 check-ins
+  if (admLog.length > 0 && admLog.length % 10 === 0) {
+    setTimeout(() => {
+      if (confirm(`🎉 ${admLog.length} guests checked in! Would you like to export a backup Excel file now for safety?`)) {
+        exportToExcel();
+      }
+    }, 1000);
+  }
 }
 
 function playSnd(type) {
