@@ -991,19 +991,33 @@ function manualVerify() {
 
 async function takeSnapshot() {
   if (!settings.photo) return null;
-  const video = document.getElementById('snapshot-cam');
   const canvas = document.getElementById('snapshot-canvas');
   const context = canvas.getContext('2d');
   
   // Try to use the scanner's video stream if running
   const scannerVideo = document.querySelector('#reader video');
-  if (scannerVideo) {
-    canvas.width = scannerVideo.videoWidth;
-    canvas.height = scannerVideo.videoHeight;
+  if (scannerVideo && scannerVideo.readyState >= 2) {
+    canvas.width = scannerVideo.videoWidth || 640;
+    canvas.height = scannerVideo.videoHeight || 480;
     context.drawImage(scannerVideo, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.5);
+    return canvas.toDataURL('image/jpeg', 0.6);
   }
-  return null;
+  
+  // If scanner is not running, try to quickly open camera for a snap
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    const tempVideo = document.createElement('video');
+    tempVideo.srcObject = stream;
+    await tempVideo.play();
+    canvas.width = tempVideo.videoWidth || 640;
+    canvas.height = tempVideo.videoHeight || 480;
+    context.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+    stream.getTracks().forEach(track => track.stop());
+    return canvas.toDataURL('image/jpeg', 0.6);
+  } catch (e) {
+    console.log("Camera access failed", e);
+    return null;
+  }
 }
 
 async function checkIn(g, forceCount = null) {
