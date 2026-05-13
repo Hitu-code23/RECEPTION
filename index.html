@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Reception Pro — Guest Verification Portal</title>
+<title>Reception Elite — Guest Verification Portal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ── RESET & ROOT ─────────────────────────────────────────── */
@@ -454,6 +455,15 @@ body {
 .gap-row { display: flex; gap: 0.75rem; align-items: center; }
 .mt-2 { margin-top: 1rem; }
 
+/* ── LOG PHOTO ── */
+.log-photo {
+  width: 60px; height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: var(--paper2);
+}
+
 /* ── THEME TOGGLE ── */
 .theme-toggle {
   position: fixed;
@@ -502,7 +512,7 @@ body {
     <a href="#" class="topbar-brand">
       <div id="brand-logo-container" class="brand-emblem">R</div>
       <div class="brand-text">
-        <span id="display-event-name">Reception Pro</span>
+        <span id="display-event-name">Reception Elite</span>
         <small id="display-event-date">Guest Verification</small>
       </div>
     </a>
@@ -599,6 +609,8 @@ body {
         <div class="scan-overlay">
           <div class="scan-reticle"><div class="scan-line"></div></div>
         </div>
+        <video id="snapshot-cam" style="display:none"></video>
+        <canvas id="snapshot-canvas" style="display:none"></canvas>
       </div>
       
       <div style="display:flex; gap:0.5rem">
@@ -648,7 +660,8 @@ body {
       <p id="modal-guest-id" style="font-family:monospace; font-size:0.8rem; color:var(--muted); margin-bottom:1.5rem"></p>
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem">
         <button class="btn-ghost" onclick="closeModal()">Close</button>
-        <button class="btn-primary" onclick="downloadQR()">Download</button>
+        <button class="btn-primary" onclick="downloadQR()">Download QR</button>
+        <button class="btn-primary" style="background:var(--ink); grid-column: span 2" onclick="generatePDFInvite()">Generate PDF Invite</button>
         <button class="btn-ghost" style="grid-column: span 2; border-color:#25D366; color:#25D366" onclick="shareWhatsApp()">Share on WhatsApp</button>
       </div>
     </div>
@@ -657,7 +670,7 @@ body {
 
 <div class="modal-overlay" id="settings-modal">
   <div class="modal">
-    <h2 style="font-family:'Libre Baskerville',serif; margin-bottom:1.5rem">Portal Settings</h2>
+    <h2 style="font-family:'Libre Baskerville',serif; margin-bottom:1.5rem">Elite Settings</h2>
     
     <div class="field">
       <label>Event Name</label>
@@ -672,12 +685,18 @@ body {
       <input type="password" id="set-admin-pin" maxlength="4" placeholder="Leave empty for no PIN" />
     </div>
     <div class="field">
-      <label>Event Profile (Multi-Event Support)</label>
+      <label>Event Profile</label>
       <select id="set-event-profile" onchange="switchProfile(this.value)">
         <option value="default">Main Event</option>
         <option value="event2">Event 2</option>
         <option value="event3">Event 3</option>
       </select>
+    </div>
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:0.5rem">
+        <input type="checkbox" id="set-photo-checkin" style="width:auto" checked>
+        Enable Photo Check-in
+      </label>
     </div>
     
     <div class="gap-row mt-2" style="justify-content:flex-end">
@@ -697,7 +716,7 @@ body {
 let currentProfile = localStorage.getItem('rxp_current_profile') || 'default';
 let guests = JSON.parse(localStorage.getItem('rxp_guests_' + currentProfile) || '[]');
 let admLog  = JSON.parse(localStorage.getItem('rxp_log_' + currentProfile)   || '[]');
-let settings = JSON.parse(localStorage.getItem('rxp_settings_' + currentProfile) || '{"name":"Reception Pro","date":"Guest Verification","pin":""}');
+let settings = JSON.parse(localStorage.getItem('rxp_settings_' + currentProfile) || '{"name":"Reception Elite","date":"Guest Verification","pin":"","photo":true}');
 
 let scanner = null, scannerRunning = false;
 let currentModalGuest = null;
@@ -720,6 +739,7 @@ function applySettings() {
   document.getElementById('set-event-date').value = settings.date;
   document.getElementById('set-admin-pin').value = settings.pin;
   document.getElementById('set-event-profile').value = currentProfile;
+  document.getElementById('set-photo-checkin').checked = settings.photo;
 }
 
 function toggleTheme() {
@@ -730,17 +750,10 @@ function toggleTheme() {
 }
 
 function tryAccessAdmin() {
-  if (!settings.pin || isAdminAuthenticated) {
-    showPage('admin');
-    return;
-  }
+  if (!settings.pin || isAdminAuthenticated) { showPage('admin'); return; }
   const pass = prompt('Enter Admin PIN:');
-  if (pass === settings.pin) {
-    isAdminAuthenticated = true;
-    showPage('admin');
-  } else if (pass !== null) {
-    showToast('Incorrect PIN');
-  }
+  if (pass === settings.pin) { isAdminAuthenticated = true; showPage('admin'); }
+  else if (pass !== null) showToast('Incorrect PIN');
 }
 
 function showPage(id) {
@@ -748,7 +761,6 @@ function showPage(id) {
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   document.getElementById('tab-' + id).classList.add('active');
-  
   if (id === 'log') renderLog();
   if (id === 'scanner') updateScannerStats();
   if (id !== 'scanner' && scannerRunning) stopScanner();
@@ -760,13 +772,10 @@ function addGuest() {
   const plusInp = document.getElementById('guest-plus-ones');
   const name = nameInp.value.trim();
   const plusOnes = parseInt(plusInp.value) || 0;
-  
   if (!name) return;
   guests.push({ id: uid(), name, plusOnes, checkedIn: false, checkedAt: null, countIn: 0 });
-  nameInp.value = '';
-  plusInp.value = '0';
-  save(); renderGuests();
-  showToast('Added: ' + name);
+  nameInp.value = ''; plusInp.value = '0';
+  save(); renderGuests(); showToast('Added: ' + name);
 }
 
 function renderGuests() {
@@ -774,26 +783,18 @@ function renderGuests() {
   const checked = guests.filter(g => g.checkedIn).length;
   document.getElementById('stat-total').textContent = guests.length;
   document.getElementById('stat-checked').textContent = checked;
-
   let list = guests.filter(g => !query || g.name.toLowerCase().includes(query) || g.id.toLowerCase().includes(query));
   const tbody = document.getElementById('guest-tbody');
   const empty = document.getElementById('guest-empty');
-  
   if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
-
   tbody.innerHTML = list.map((g) => `
     <tr>
       <td>
         <div class="guest-name-cell">${esc(g.name)} ${g.plusOnes > 0 ? `<small style="color:var(--gold)">+${g.plusOnes}</small>` : ''}</div>
         <div class="guest-id-cell">${esc(g.id)}</div>
       </td>
-      <td>
-        <span class="badge ${g.checkedIn ? 'badge-checked' : 'badge-pending'}">
-          <span class="badge-dot"></span>
-          ${g.checkedIn ? 'In' : 'Wait'}
-        </span>
-      </td>
+      <td><span class="badge ${g.checkedIn ? 'badge-checked' : 'badge-pending'}"><span class="badge-dot"></span>${g.checkedIn ? 'In' : 'Wait'}</span></td>
       <td style="text-align:right">
         <div style="display:flex; gap:0.4rem; justify-content:flex-end">
           <button class="btn-icon" onclick="showQR('${g.id}')">🎟</button>
@@ -825,6 +826,64 @@ function downloadQR() {
   link.download = 'QR_' + currentModalGuest.name.replace(/\s+/g,'_') + '.png';
   link.href = canvas.toDataURL('image/png');
   link.click();
+}
+
+async function generatePDFInvite() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+  const qrCanvas = document.querySelector('#modal-qr-wrap canvas');
+  if (!qrCanvas || !currentModalGuest) return;
+  
+  showToast('Generating PDF...');
+  
+  // Background
+  doc.setFillColor(250, 248, 244);
+  doc.rect(0, 0, 148, 210, 'F');
+  
+  // Border
+  doc.setDrawColor(184, 146, 42);
+  doc.setLineWidth(1);
+  doc.rect(5, 5, 138, 200);
+  
+  // Content
+  doc.setTextColor(15, 13, 10);
+  doc.setFont('times', 'italic');
+  doc.setFontSize(14);
+  doc.text('You are cordially invited to', 74, 40, { align: 'center' });
+  
+  doc.setFont('times', 'bold');
+  doc.setFontSize(24);
+  doc.text(settings.name, 74, 55, { align: 'center' });
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(settings.date, 74, 65, { align: 'center' });
+  
+  doc.setDrawColor(224, 216, 200);
+  doc.line(40, 75, 108, 75);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(currentModalGuest.name.toUpperCase(), 74, 90, { align: 'center' });
+  
+  if (currentModalGuest.plusOnes > 0) {
+    doc.setFontSize(10);
+    doc.setTextColor(184, 146, 42);
+    doc.text(`ADMIT GUEST + ${currentModalGuest.plusOnes}`, 74, 98, { align: 'center' });
+  }
+  
+  // QR Code
+  const qrData = qrCanvas.toDataURL('image/jpeg', 1.0);
+  doc.addImage(qrData, 'JPEG', 44, 110, 60, 60);
+  
+  doc.setTextColor(138, 125, 100);
+  doc.setFontSize(8);
+  doc.text('PLEASE PRESENT THIS CODE AT RECEPTION', 74, 180, { align: 'center' });
+  doc.setFont('courier', 'normal');
+  doc.text(currentModalGuest.id, 74, 185, { align: 'center' });
+  
+  doc.save(`Invite_${currentModalGuest.name.replace(/\s+/g,'_')}.pdf`);
+  showToast('Invitation Ready!');
 }
 
 function shareWhatsApp() {
@@ -872,11 +931,7 @@ async function scanFromGallery(event) {
 function onScanSuccess(text) {
   const id = text.split('||')[0].trim();
   const g = guests.find(x => x.id === id);
-  if (!g) { 
-    showResult('fail','❌','Invalid','Code not recognized.'); 
-    playSnd('fail');
-    return; 
-  }
+  if (!g) { showResult('fail','❌','Invalid','Code not recognized.'); playSnd('fail'); return; }
   checkIn(g);
 }
 
@@ -888,24 +943,39 @@ function manualVerify() {
   document.getElementById('manual-input').value = '';
 }
 
-function checkIn(g) {
+async function takeSnapshot() {
+  if (!settings.photo) return null;
+  const video = document.getElementById('snapshot-cam');
+  const canvas = document.getElementById('snapshot-canvas');
+  const context = canvas.getContext('2d');
+  
+  // Try to use the scanner's video stream if running
+  const scannerVideo = document.querySelector('#reader video');
+  if (scannerVideo) {
+    canvas.width = scannerVideo.videoWidth;
+    canvas.height = scannerVideo.videoHeight;
+    context.drawImage(scannerVideo, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.5);
+  }
+  return null;
+}
+
+async function checkIn(g) {
   if (g.checkedIn) {
     showResult('used','⚠️','Already In', `${g.name} entered at ${g.checkedAt}`);
-    playSnd('fail');
-    return;
+    playSnd('fail'); return;
   }
-  
   let count = 1;
   if (g.plusOnes > 0) {
     const input = prompt(`${g.name} has +${g.plusOnes} guests. How many are arriving?`, g.plusOnes + 1);
     count = parseInt(input) || 1;
   }
   
+  const photo = await takeSnapshot();
   const now = new Date();
-  g.checkedIn = true;
-  g.countIn = count;
+  g.checkedIn = true; g.countIn = count;
   g.checkedAt = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  admLog.unshift({ id: g.id, name: g.name, time: g.checkedAt, date: now.toLocaleDateString(), count: count });
+  admLog.unshift({ id: g.id, name: g.name, time: g.checkedAt, date: now.toLocaleDateString(), count: count, photo: photo });
   
   save(); renderGuests(); updateScannerStats();
   showResult('success','✅','Welcome!', `${g.name} (${count} people)`);
@@ -935,22 +1005,20 @@ function showResult(type, icon, title, detail) {
 function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
 function saveSettings() {
-  settings.name = document.getElementById('set-event-name').value || 'Reception Pro';
+  settings.name = document.getElementById('set-event-name').value || 'Reception Elite';
   settings.date = document.getElementById('set-event-date').value || 'Guest Verification';
   settings.pin = document.getElementById('set-admin-pin').value;
-  save(); applySettings(); closeSettings();
-  showToast('Settings Saved');
+  settings.photo = document.getElementById('set-photo-checkin').checked;
+  save(); applySettings(); closeSettings(); showToast('Settings Saved');
 }
 
 function switchProfile(p) {
   currentProfile = p;
   guests = JSON.parse(localStorage.getItem('rxp_guests_' + p) || '[]');
   admLog  = JSON.parse(localStorage.getItem('rxp_log_' + p)   || '[]');
-  settings = JSON.parse(localStorage.getItem('rxp_settings_' + p) || '{"name":"Reception Pro","date":"Guest Verification","pin":""}');
+  settings = JSON.parse(localStorage.getItem('rxp_settings_' + p) || '{"name":"Reception Elite","date":"Guest Verification","pin":"","photo":true}');
   isAdminAuthenticated = false;
-  save(); applySettings(); renderGuests();
-  showPage('admin');
-  showToast('Switched to ' + p);
+  save(); applySettings(); renderGuests(); showPage('admin'); showToast('Switched to ' + p);
 }
 
 function exportToExcel() {
@@ -983,8 +1051,17 @@ function renderLog() {
   document.getElementById('log-empty').style.display = 'none';
   container.innerHTML = admLog.map(l => `
     <div style="padding:1rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center">
-      <div><div style="font-weight:600">${esc(l.name)} (${l.count})</div><div style="font-size:0.7rem; color:var(--muted)">${l.id}</div></div>
-      <div style="text-align:right"><div style="font-weight:700; color:var(--gold)">${l.time}</div><div style="font-size:0.6rem">${l.date}</div></div>
+      <div style="display:flex; gap:1rem; align-items:center">
+        ${l.photo ? `<img src="${l.photo}" class="log-photo">` : `<div class="log-photo" style="display:flex; align-items:center; justify-content:center; font-size:1.5rem">👤</div>`}
+        <div>
+          <div style="font-weight:600">${esc(l.name)} (${l.count})</div>
+          <div style="font-size:0.7rem; color:var(--muted)">${l.id}</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700; color:var(--gold)">${l.time}</div>
+        <div style="font-size:0.6rem">${l.date}</div>
+      </div>
     </div>`).join('');
 }
 
@@ -1001,6 +1078,12 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function updateScannerStats() {
+  const checked = guests.filter(g => g.checkedIn).length;
+  document.getElementById('s-total').textContent = guests.length;
+  document.getElementById('s-checked').textContent = checked;
 }
 
 // Init
