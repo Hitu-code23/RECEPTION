@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Reception Elite — Guest Verification Portal</title>
+<title>Reception Elite — Guest Verification Portal (Supabase)</title>
 <link rel="manifest" href="data:application/manifest+json,{'name':'Reception Elite','short_name':'Reception','start_url':'.','display':'standalone','background_color':'#1e1a14','theme_color':'#b8922a'}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,6 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ── RESET & ROOT ─────────────────────────────────────────── */
@@ -348,7 +349,9 @@ body {
 .guest-id-cell { font-family: monospace; font-size: 0.7rem; color: var(--muted); }
 
 .badge {
-  display: inline-flex; align-items: center; gap: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   padding: 0.25rem 0.6rem;
   border-radius: 20px;
   font-size: 0.65rem;
@@ -356,25 +359,57 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.badge-pending { background: var(--amberBg); color: var(--amber); }
-.badge-checked { background: var(--greenBg); color: var(--green); }
-.badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.badge-dot { width: 5px; height: 5px; border-radius: 50%; }
+.badge-pending { background: var(--amberBg); color: var(--amber); border: 1px solid var(--amberBd); }
+.badge-pending .badge-dot { background: var(--amber); }
+.badge-checked { background: var(--greenBg); color: var(--green); border: 1px solid var(--greenBd); }
+.badge-checked .badge-dot { background: var(--green); }
 
-/* ── SCANNER ────────────────────────────────────────────────── */
-.scanner-layout { display: flex; flex-direction: column; gap: 1.25rem; }
-.scanner-frame {
+/* ── MODALS ─────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 13, 10, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  opacity: 0; pointer-events: none; transition: all 0.3s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal {
+  background: var(--paper);
+  border-radius: var(--radius);
   width: 100%;
   max-width: 400px;
-  margin: 0 auto;
+  padding: 2rem;
+  transform: translateY(20px);
+  transition: all 0.3s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-qr-wrap {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 12px;
+  margin: 0 auto 1.5rem;
+  width: fit-content;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+/* ── SCANNER ────────────────────────────────────────────────── */
+.scanner-layout { display: flex; flex-direction: column; gap: 1rem; }
+.scanner-frame {
+  position: relative;
   aspect-ratio: 1;
   background: #000;
-  border: 3px solid var(--border2);
-  border-radius: 20px;
-  position: relative;
+  border-radius: var(--radius);
   overflow: hidden;
+  border: 4px solid var(--border2);
+  transition: border-color 0.3s;
 }
 .scanner-frame.active-scan { border-color: var(--gold); }
-
 #reader { width: 100%; height: 100%; }
 .scan-overlay {
   position: absolute;
@@ -383,120 +418,72 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
 }
 .scan-reticle {
   width: 70%; height: 70%;
   border: 2px solid rgba(255,255,255,0.3);
-  border-radius: 20px;
   position: relative;
 }
 .scan-line {
   position: absolute;
-  top: 10%; left: 5%; right: 5%;
+  top: 0; left: 0; right: 0;
   height: 2px;
   background: var(--gold);
   box-shadow: 0 0 10px var(--gold);
-  animation: scanAnim 2s infinite ease-in-out;
+  animation: scan 2s infinite ease-in-out;
 }
-@keyframes scanAnim {
-  0%, 100% { top: 10%; opacity: 0.2; }
-  50% { top: 90%; opacity: 1; }
-}
+@keyframes scan { 0%, 100% { top: 0%; } 50% { top: 100%; } }
 
+/* ── RESULTS ────────────────────────────────────────────────── */
 .result-card {
-  padding: 1.25rem;
+  padding: 1.5rem;
   border-radius: var(--radius);
   text-align: center;
-  animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  margin-bottom: 1rem;
+  animation: slideDown 0.4s ease;
 }
-@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-.result-success { background: var(--greenBg); border: 1px solid var(--greenBd); color: var(--green); }
-.result-fail { background: var(--redBg); border: 1px solid var(--redBd); color: var(--red); }
-.result-used { background: var(--amberBg); border: 1px solid var(--amberBd); color: var(--amber); }
-
-.result-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-.result-title { font-family: 'Libre Baskerville', serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; }
+@keyframes slideDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+.result-success { background: var(--greenBg); border: 2px solid var(--greenBd); color: var(--green); }
+.result-fail { background: var(--redBg); border: 2px solid var(--redBd); color: var(--red); }
+.result-used { background: var(--amberBg); border: 2px solid var(--amberBd); color: var(--amber); }
+.result-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.result-title { font-family: 'Libre Baskerville', serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.2rem; }
 .result-name { font-size: 0.9rem; font-weight: 500; opacity: 0.8; }
 
-/* ── MODAL ──────────────────────────────────────────────────── */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15, 13, 10, 0.9);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  opacity: 0; pointer-events: none;
-  transition: all 0.3s;
-}
-.modal-overlay.open { opacity: 1; pointer-events: auto; }
-.modal {
-  background: var(--paper);
-  width: 100%;
-  max-width: 400px;
-  border-radius: 24px;
-  padding: 2rem;
-  transform: scale(0.9);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.modal-overlay.open .modal { transform: scale(1); }
-
-.modal-qr-wrap {
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 20px;
-  margin: 0 auto 1.5rem;
-  display: inline-block;
-  box-shadow: var(--shadow);
-}
-.modal-qr-wrap canvas, .modal-qr-wrap img { display: block; max-width: 100%; }
-
-.gap-row { display: flex; gap: 0.75rem; align-items: center; }
+/* ── UTILS ──────────────────────────────────────────────────── */
 .mt-2 { margin-top: 1rem; }
+.gap-row { display: flex; gap: 0.5rem; }
+.log-photo { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--paper2); border: 1px solid var(--border); }
 
-/* ── LOG PHOTO ── */
-.log-photo {
-  width: 60px; height: 60px;
-  border-radius: 8px;
-  object-fit: cover;
-  border: 1px solid var(--border);
-  background: var(--paper2);
-}
-
-/* ── THEME TOGGLE ── */
 .theme-toggle {
   position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  width: 50px; height: 50px;
-  background: var(--gold);
+  bottom: 1.5rem; right: 1.5rem;
+  width: 48px; height: 48px;
+  background: var(--ink2);
+  color: var(--gold2);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  color: #fff;
+  font-size: 1.25rem;
   box-shadow: var(--shadowLg);
+  z-index: 500;
   cursor: pointer;
-  z-index: 1000;
+  border: 1px solid var(--border);
 }
 
-/* ── TOAST ──────────────────────────────────────────────────── */
 #toast {
   position: fixed;
-  bottom: 2rem;
-  left: 50%;
+  bottom: 5rem; left: 50%;
   transform: translateX(-50%) translateY(100px);
   background: var(--ink);
   color: #fff;
   padding: 0.75rem 1.5rem;
-  border-radius: 50px;
-  font-size: 0.8rem;
+  border-radius: 30px;
+  font-size: 0.75rem;
   font-weight: 600;
+  letter-spacing: 0.05em;
   z-index: 2000;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  white-space: nowrap;
   box-shadow: var(--shadowLg);
 }
 #toast.show { transform: translateX(-50%) translateY(0); }
@@ -699,7 +686,7 @@ body {
     <div class="field">
       <label style="display:flex; align-items:center; gap:0.5rem">
         <input type="checkbox" id="set-photo-checkin" style="width:auto" checked>
-        Enable Photo Check-in
+        Photo on Check-in
       </label>
     </div>
     
@@ -717,21 +704,71 @@ body {
 <audio id="snd-fail" src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3"></audio>
 
 <script>
+// --- SUPABASE CONFIGURATION ---
+const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your URL
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your Anon Key
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let currentProfile = localStorage.getItem('rxp_current_profile') || 'default';
-let guests = JSON.parse(localStorage.getItem('rxp_guests_' + currentProfile) || '[]');
-let admLog  = JSON.parse(localStorage.getItem('rxp_log_' + currentProfile)   || '[]');
+let guests = [];
+let admLog  = [];
 let settings = JSON.parse(localStorage.getItem('rxp_settings_' + currentProfile) || '{"name":"Reception Elite","date":"Guest Verification","pin":"788862","photo":true}');
 
 let scanner = null, scannerRunning = false;
 let currentModalGuest = null;
 let isAdminAuthenticated = false;
 
-function save() {
-  localStorage.setItem('rxp_guests_' + currentProfile, JSON.stringify(guests));
-  localStorage.setItem('rxp_log_' + currentProfile,    JSON.stringify(admLog));
-  localStorage.setItem('rxp_settings_' + currentProfile, JSON.stringify(settings));
-  localStorage.setItem('rxp_current_profile', currentProfile);
+// --- DATA SYNC FUNCTIONS ---
+
+async function loadData() {
+  showToast('Syncing with Cloud...');
+  
+  // Load Guests
+  const { data: guestsData, error: gError } = await supabase
+    .from('guests')
+    .select('*')
+    .eq('profile', currentProfile);
+  
+  if (!gError) {
+    guests = guestsData.map(g => ({
+      id: g.id,
+      name: g.name,
+      plusOnes: g.plus_ones,
+      checkedIn: g.checked_in,
+      checkedAt: g.checked_at,
+      countIn: g.count_in
+    }));
+  }
+
+  // Load Logs
+  const { data: logsData, error: lError } = await supabase
+    .from('logs')
+    .select('*')
+    .eq('profile', currentProfile)
+    .order('created_at', { ascending: false });
+  
+  if (!lError) {
+    admLog = logsData;
+  }
+
+  renderGuests();
+  updateScannerStats();
 }
+
+// Set up real-time listeners
+supabase
+  .channel('public:guests')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' }, payload => {
+    loadData(); // Reload all data when something changes
+  })
+  .subscribe();
+
+supabase
+  .channel('public:logs')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'logs' }, payload => {
+    loadData();
+  })
+  .subscribe();
 
 function uid() { return 'RX-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2,3).toUpperCase(); }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -755,10 +792,9 @@ function toggleTheme() {
 
 function tryAccessAdmin() {
   if (isAdminAuthenticated) { showPage('admin'); return; }
-  // Force set the PIN if it's not what we want (for users with old local storage)
   if (settings.pin !== "788862") {
     settings.pin = "788862";
-    save();
+    localStorage.setItem('rxp_settings_' + currentProfile, JSON.stringify(settings));
   }
   const pass = prompt('Enter Admin PIN:');
   if (pass === settings.pin) { 
@@ -780,34 +816,49 @@ function showPage(id) {
   window.scrollTo(0,0);
 }
 
-function addGuest() {
+async function addGuest() {
   const nameInp = document.getElementById('guest-input');
   const plusInp = document.getElementById('guest-plus-ones');
   const name = nameInp.value.trim();
   const plusOnes = parseInt(plusInp.value) || 0;
   if (!name) return;
-  guests.push({ id: uid(), name, plusOnes, checkedIn: false, checkedAt: null, countIn: 0 });
-  nameInp.value = ''; plusInp.value = '0';
-  save(); renderGuests(); showToast('Added: ' + name);
+
+  const newGuest = { 
+    id: uid(), 
+    name: name, 
+    plus_ones: plusOnes, 
+    checked_in: false, 
+    checked_at: null, 
+    count_in: 0,
+    profile: currentProfile
+  };
+
+  const { error } = await supabase.from('guests').insert([newGuest]);
+  
+  if (error) {
+    showToast('Error adding guest');
+  } else {
+    nameInp.value = ''; plusInp.value = '0';
+    showToast('Added: ' + name);
+  }
 }
 
-function removeGuest(id) {
+async function removeGuest(id) {
   if(!confirm('Remove this guest?')) return;
-  guests = guests.filter(g => g.id !== id);
-  save(); renderGuests();
+  const { error } = await supabase.from('guests').delete().eq('id', id);
+  if (error) showToast('Error removing guest');
 }
 
-function clearAll() {
+async function clearAll() {
   if (!confirm('Clear all data for this event?')) return;
-  guests = []; admLog = [];
-  save(); renderGuests();
+  await supabase.from('guests').delete().eq('profile', currentProfile);
+  await supabase.from('logs').delete().eq('profile', currentProfile);
   showToast('Cleared');
 }
 
 function renderGuests() {
   const query = (document.getElementById('search-input')?.value || '').toLowerCase();
   
-  // Calculate total headcounts
   const totalPeople = guests.reduce((sum, g) => sum + (g.plusOnes + 1), 0);
   const checkedPeople = guests.filter(g => g.checkedIn).reduce((sum, g) => sum + (g.countIn || 0), 0);
   
@@ -878,53 +929,38 @@ async function generatePDFInvite() {
   if (!qrCanvas || !currentModalGuest) return;
   
   showToast('Generating PDF...');
-  
-  // Background
   doc.setFillColor(250, 248, 244);
   doc.rect(0, 0, 148, 210, 'F');
-  
-  // Border
   doc.setDrawColor(184, 146, 42);
   doc.setLineWidth(1);
   doc.rect(5, 5, 138, 200);
-  
-  // Content
   doc.setTextColor(15, 13, 10);
   doc.setFont('times', 'italic');
   doc.setFontSize(14);
   doc.text('You are cordially invited to', 74, 40, { align: 'center' });
-  
   doc.setFont('times', 'bold');
   doc.setFontSize(24);
   doc.text(settings.name, 74, 55, { align: 'center' });
-  
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(settings.date, 74, 65, { align: 'center' });
-  
   doc.setDrawColor(224, 216, 200);
   doc.line(40, 75, 108, 75);
-  
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.text(currentModalGuest.name.toUpperCase(), 74, 90, { align: 'center' });
-  
   if (currentModalGuest.plusOnes > 0) {
     doc.setFontSize(10);
     doc.setTextColor(184, 146, 42);
     doc.text(`ADMIT GUEST + ${currentModalGuest.plusOnes}`, 74, 98, { align: 'center' });
   }
-  
-  // QR Code
   const qrData = qrCanvas.toDataURL('image/jpeg', 1.0);
   doc.addImage(qrData, 'JPEG', 44, 110, 60, 60);
-  
   doc.setTextColor(138, 125, 100);
   doc.setFontSize(8);
   doc.text('PLEASE PRESENT THIS CODE AT RECEPTION', 74, 180, { align: 'center' });
   doc.setFont('courier', 'normal');
   doc.text(currentModalGuest.id, 74, 185, { align: 'center' });
-  
   doc.save(`Invite_${currentModalGuest.name.replace(/\s+/g,'_')}.pdf`);
   showToast('Invitation Ready!');
 }
@@ -993,7 +1029,7 @@ function onScanSuccess(text) {
   checkIn(g);
 }
 
-function checkInById(id, count = null) {
+function checkInById(id, count) {
   const g = guests.find(x => x.id === id);
   if (g) checkIn(g, count);
 }
@@ -1010,8 +1046,6 @@ async function takeSnapshot() {
   if (!settings.photo) return null;
   const canvas = document.getElementById('snapshot-canvas');
   const context = canvas.getContext('2d');
-  
-  // Try to use the scanner's video stream if running
   const scannerVideo = document.querySelector('#reader video');
   if (scannerVideo && scannerVideo.readyState >= 2) {
     canvas.width = scannerVideo.videoWidth || 640;
@@ -1019,8 +1053,6 @@ async function takeSnapshot() {
     context.drawImage(scannerVideo, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.6);
   }
-  
-  // If scanner is not running, try to quickly open camera for a snap
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     const tempVideo = document.createElement('video');
@@ -1032,7 +1064,6 @@ async function takeSnapshot() {
     stream.getTracks().forEach(track => track.stop());
     return canvas.toDataURL('image/jpeg', 0.6);
   } catch (e) {
-    console.log("Camera access failed", e);
     return null;
   }
 }
@@ -1048,29 +1079,36 @@ async function checkIn(g, forceCount = null) {
     count = forceCount;
   } else if (g.plusOnes > 0) {
     const input = prompt(`${g.name} has +${g.plusOnes} guests. How many are arriving?`, g.plusOnes + 1);
-    if (input === null) return; // Cancelled
+    if (input === null) return;
     count = parseInt(input) || 1;
   }
   
   const photo = await takeSnapshot();
   const now = new Date();
-  g.checkedIn = true; g.countIn = count;
-  g.checkedAt = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  admLog.unshift({ id: g.id, name: g.name, time: g.checkedAt, date: now.toLocaleDateString(), count: count, photo: photo });
+  const checkedAt = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const checkedDate = now.toLocaleDateString();
+
+  // Update Guest in Supabase
+  await supabase.from('guests').update({ 
+    checked_in: true, 
+    count_in: count, 
+    checked_at: checkedAt 
+  }).eq('id', g.id);
+
+  // Add Log to Supabase
+  await supabase.from('logs').insert([{
+    guest_id: g.id,
+    name: g.name,
+    time: checkedAt,
+    date: checkedDate,
+    count: count,
+    photo: photo,
+    profile: currentProfile
+  }]);
   
-  save(); renderGuests(); updateScannerStats();
   showResult('success','✅','Welcome!', `${g.name} (${count} people)`);
   playSnd('success');
   if (navigator.vibrate) navigator.vibrate(200);
-
-  // Auto-backup reminder every 10 check-ins
-  if (admLog.length > 0 && admLog.length % 10 === 0) {
-    setTimeout(() => {
-      if (confirm(`🎉 ${admLog.length} guests checked in! Would you like to export a backup Excel file now for safety?`)) {
-        exportToExcel();
-      }
-    }, 1000);
-  }
 }
 
 function playSnd(type) {
@@ -1099,16 +1137,19 @@ function saveSettings() {
   settings.date = document.getElementById('set-event-date').value || 'Guest Verification';
   settings.pin = document.getElementById('set-admin-pin').value;
   settings.photo = document.getElementById('set-photo-checkin').checked;
-  save(); applySettings(); closeSettings(); showToast('Settings Saved');
+  localStorage.setItem('rxp_settings_' + currentProfile, JSON.stringify(settings));
+  applySettings(); closeSettings(); showToast('Settings Saved');
 }
 
-function switchProfile(p) {
+async function switchProfile(p) {
   currentProfile = p;
-  guests = JSON.parse(localStorage.getItem('rxp_guests_' + p) || '[]');
-  admLog  = JSON.parse(localStorage.getItem('rxp_log_' + p)   || '[]');
+  localStorage.setItem('rxp_current_profile', p);
   settings = JSON.parse(localStorage.getItem('rxp_settings_' + p) || '{"name":"Reception Elite","date":"Guest Verification","pin":"","photo":true}');
   isAdminAuthenticated = false;
-  save(); applySettings(); renderGuests(); showPage('admin'); showToast('Switched to ' + p);
+  applySettings();
+  await loadData();
+  showPage('admin');
+  showToast('Switched to ' + p);
 }
 
 function exportToExcel() {
@@ -1119,18 +1160,25 @@ function exportToExcel() {
   XLSX.writeFile(wb, `${settings.name}_GuestList.xlsx`);
 }
 
-function importFromExcel(event) {
+async function importFromExcel(event) {
   const file = event.target.files[0];
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, {type: 'array'});
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json(sheet);
-    json.forEach(row => {
-      guests.push({ id: uid(), name: row.Name || row.name || 'Unknown', plusOnes: parseInt(row.PlusOnes || row.plusones || 0), checkedIn: false, checkedAt: null });
-    });
-    save(); renderGuests(); showToast(`Imported ${json.length} guests`);
+    
+    const newGuests = json.map(row => ({
+      id: uid(),
+      name: row.Name || row.name || 'Unknown',
+      plus_ones: parseInt(row.PlusOnes || row.plusones || 0),
+      checked_in: false,
+      profile: currentProfile
+    }));
+
+    await supabase.from('guests').insert(newGuests);
+    showToast(`Imported ${json.length} guests`);
   };
   reader.readAsArrayBuffer(file);
 }
@@ -1145,7 +1193,7 @@ function renderLog() {
         ${l.photo ? `<img src="${l.photo}" class="log-photo">` : `<div class="log-photo" style="display:flex; align-items:center; justify-content:center; font-size:1.5rem">👤</div>`}
         <div>
           <div style="font-weight:600">${esc(l.name)} (${l.count})</div>
-          <div style="font-size:0.7rem; color:var(--muted)">${l.id}</div>
+          <div style="font-size:0.7rem; color:var(--muted)">${l.guest_id}</div>
         </div>
       </div>
       <div style="text-align:right">
@@ -1156,7 +1204,7 @@ function renderLog() {
 }
 
 function exportLog() {
-  let csv = 'ID,Name,Count,Time,Date\n' + admLog.map(l => `"${l.id}","${l.name}","${l.count}","${l.time}","${l.date}"`).join('\n');
+  let csv = 'ID,Name,Count,Time,Date\n' + admLog.map(l => `"${l.guest_id}","${l.name}","${l.count}","${l.time}","${l.date}"`).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1181,7 +1229,7 @@ function updateScannerStats() {
 const savedTheme = localStorage.getItem('rxp_theme') || 'light';
 document.body.setAttribute('data-theme', savedTheme);
 applySettings();
-renderGuests();
+loadData();
 </script>
 </body>
 </html>
