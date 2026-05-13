@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Reception — Guest Verification Portal</title>
+<title>Reception Pro — Guest Verification Portal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ── RESET & ROOT ─────────────────────────────────────────── */
@@ -36,6 +37,17 @@
   --radius:     12px;
 }
 
+[data-theme="dark"] {
+  --ink:        #f5f0e8;
+  --ink2:       #0f0d0a;
+  --paper:      #1e1a14;
+  --paper2:     #0a0908;
+  --border:     #3a3020;
+  --border2:    #5a5040;
+  --muted:      #a09070;
+  --shadow:     0 2px 16px rgba(0,0,0,0.4);
+}
+
 html { scroll-behavior: smooth; height: 100%; }
 
 body {
@@ -46,12 +58,13 @@ body {
   min-height: 100%;
   line-height: 1.6;
   overflow-x: hidden;
+  transition: background 0.3s, color 0.3s;
 }
 
 /* ── TOPBAR ─────────────────────────────────────────────────── */
 .topbar {
   background: var(--ink2);
-  border-bottom: 1px solid #3a3020;
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 200;
@@ -181,9 +194,9 @@ body {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1px;
-  background: #3a3020;
-  border-top: 1px solid #3a3020;
-  border-bottom: 1px solid #3a3020;
+  background: var(--border);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 .stat-cell {
   background: var(--ink2);
@@ -206,7 +219,7 @@ body {
 
 /* ── CARDS ──────────────────────────────────────────────────── */
 .card {
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -247,16 +260,16 @@ body {
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
   font-family: 'Jost', sans-serif;
-  font-size: 1rem; /* Prevents iOS zoom on focus */
+  font-size: 1rem;
   color: var(--ink);
-  background: var(--paper);
+  background: var(--paper2);
   outline: none;
   transition: all 0.2s;
   -webkit-appearance: none;
 }
 .field input:focus, .field textarea:focus, .field select:focus {
   border-color: var(--gold);
-  background: #fff;
+  background: var(--paper);
   box-shadow: 0 0 0 3px rgba(184,146,42,0.1);
 }
 
@@ -299,7 +312,7 @@ body {
 .btn-ghost:active { background: var(--goldPale); }
 
 .btn-icon {
-  background: var(--paper);
+  background: var(--paper2);
   border: 1px solid var(--border);
   border-radius: 8px;
   width: 40px; height: 40px;
@@ -441,6 +454,21 @@ body {
 .gap-row { display: flex; gap: 0.75rem; align-items: center; }
 .mt-2 { margin-top: 1rem; }
 
+/* ── THEME TOGGLE ── */
+.theme-toggle {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 50px; height: 50px;
+  background: var(--gold);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  box-shadow: var(--shadowLg);
+  cursor: pointer;
+  z-index: 1000;
+}
+
 /* ── TOAST ──────────────────────────────────────────────────── */
 #toast {
   position: fixed;
@@ -467,28 +495,31 @@ body {
 }
 </style>
 </head>
-<body>
+<body data-theme="light">
 
 <div class="topbar">
   <div class="topbar-main">
     <a href="#" class="topbar-brand">
-      <div class="brand-emblem">R</div>
+      <div id="brand-logo-container" class="brand-emblem">R</div>
       <div class="brand-text">
-        Reception
-        <small>Guest Verification</small>
+        <span id="display-event-name">Reception Pro</span>
+        <small id="display-event-date">Guest Verification</small>
       </div>
     </a>
+    <div style="display:flex; gap:0.5rem">
+      <button class="btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
+    </div>
   </div>
   <div class="topbar-tabs">
-    <button class="tab-btn active" onclick="showPage('admin')">
+    <button class="tab-btn active" id="tab-admin" onclick="tryAccessAdmin()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Admin
     </button>
-    <button class="tab-btn" onclick="showPage('scanner')">
+    <button class="tab-btn" id="tab-scanner" onclick="showPage('scanner')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
       Scanner
     </button>
-    <button class="tab-btn" onclick="showPage('log')">
+    <button class="tab-btn" id="tab-log" onclick="showPage('log')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       Log
     </button>
@@ -512,29 +543,31 @@ body {
         <div class="card-body">
           <div class="field">
             <label>Guest Full Name</label>
+            <input type="text" id="guest-input" placeholder="Enter name..." onkeydown="if(event.key==='Enter') addGuest()" />
+          </div>
+          <div class="field">
+            <label>Plus Ones (Group Size)</label>
             <div class="input-row">
-              <input type="text" id="guest-input" placeholder="Enter name..." onkeydown="if(event.key==='Enter') addGuest()" />
-              <button class="btn-primary" onclick="addGuest()">Add</button>
+              <input type="number" id="guest-plus-ones" value="0" min="0" />
+              <button class="btn-primary" onclick="addGuest()">Add Guest</button>
             </div>
           </div>
-          <details style="margin-top:1rem">
-            <summary style="font-size:0.7rem; color:var(--muted); cursor:pointer; font-weight:600">Bulk Import</summary>
-            <div class="field mt-2">
-              <textarea id="bulk-input" placeholder="Names (one per line)" style="min-height:100px"></textarea>
-              <button class="btn-primary mt-2" style="width:100%" onclick="bulkImport()">Import All</button>
-            </div>
-          </details>
+          <div style="display:flex; gap:0.5rem; margin-top:1rem">
+             <button class="btn-ghost" style="flex:1" onclick="exportToExcel()">Export Excel</button>
+             <button class="btn-ghost" style="flex:1" onclick="document.getElementById('import-excel').click()">Import Excel</button>
+             <input type="file" id="import-excel" accept=".xlsx, .xls, .csv" style="display:none" onchange="importFromExcel(event)">
+          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head">
           <span class="card-title">Guests</span>
-          <button class="btn-ghost" onclick="clearAll()" style="color:var(--red); border-color:var(--redBd); padding:0.4rem 0.6rem; font-size:0.6rem">Reset</button>
+          <button class="btn-ghost" onclick="clearAll()" style="color:var(--red); border-color:var(--redBd); padding:0.4rem 0.6rem; font-size:0.6rem">Reset All</button>
         </div>
         <div class="card-body compact">
           <div class="field" style="padding:0.5rem">
-            <input type="text" id="search-input" placeholder="Search..." oninput="renderGuests()" />
+            <input type="text" id="search-input" placeholder="Search guests..." oninput="renderGuests()" />
           </div>
           <div style="overflow-x:auto">
             <table class="guest-table">
@@ -610,76 +643,130 @@ body {
   <div class="modal">
     <div style="text-align:center">
       <div class="modal-qr-wrap" id="modal-qr-wrap"></div>
-      <h2 id="modal-guest-name" style="font-family:'Libre Baskerville',serif; margin-bottom:0.5rem"></h2>
+      <h2 id="modal-guest-name" style="font-family:'Libre Baskerville',serif; margin-bottom:0.2rem"></h2>
+      <p id="modal-guest-plus" style="font-size:0.7rem; color:var(--gold); font-weight:700; text-transform:uppercase; margin-bottom:0.5rem"></p>
       <p id="modal-guest-id" style="font-family:monospace; font-size:0.8rem; color:var(--muted); margin-bottom:1.5rem"></p>
-      <div class="gap-row" style="justify-content:center">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem">
         <button class="btn-ghost" onclick="closeModal()">Close</button>
         <button class="btn-primary" onclick="downloadQR()">Download</button>
+        <button class="btn-ghost" style="grid-column: span 2; border-color:#25D366; color:#25D366" onclick="shareWhatsApp()">Share on WhatsApp</button>
       </div>
     </div>
   </div>
 </div>
 
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <h2 style="font-family:'Libre Baskerville',serif; margin-bottom:1.5rem">Portal Settings</h2>
+    
+    <div class="field">
+      <label>Event Name</label>
+      <input type="text" id="set-event-name" placeholder="e.g. Wedding Reception" />
+    </div>
+    <div class="field">
+      <label>Event Date</label>
+      <input type="text" id="set-event-date" placeholder="e.g. May 24, 2024" />
+    </div>
+    <div class="field">
+      <label>Admin PIN (4 digits)</label>
+      <input type="password" id="set-admin-pin" maxlength="4" placeholder="Leave empty for no PIN" />
+    </div>
+    <div class="field">
+      <label>Event Profile (Multi-Event Support)</label>
+      <select id="set-event-profile" onchange="switchProfile(this.value)">
+        <option value="default">Main Event</option>
+        <option value="event2">Event 2</option>
+        <option value="event3">Event 3</option>
+      </select>
+    </div>
+    
+    <div class="gap-row mt-2" style="justify-content:flex-end">
+      <button class="btn-ghost" onclick="closeSettings()">Cancel</button>
+      <button class="btn-primary" onclick="saveSettings()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌓</div>
 <div id="toast"></div>
 
+<audio id="snd-success" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+<audio id="snd-fail" src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3"></audio>
+
 <script>
-let guests = JSON.parse(localStorage.getItem('rxp_guests') || '[]');
-let admLog  = JSON.parse(localStorage.getItem('rxp_log')   || '[]');
-let evtInfo = JSON.parse(localStorage.getItem('rxp_evt')   || '{}');
+let currentProfile = localStorage.getItem('rxp_current_profile') || 'default';
+let guests = JSON.parse(localStorage.getItem('rxp_guests_' + currentProfile) || '[]');
+let admLog  = JSON.parse(localStorage.getItem('rxp_log_' + currentProfile)   || '[]');
+let settings = JSON.parse(localStorage.getItem('rxp_settings_' + currentProfile) || '{"name":"Reception Pro","date":"Guest Verification","pin":""}');
+
 let scanner = null, scannerRunning = false;
 let currentModalGuest = null;
+let isAdminAuthenticated = false;
 
 function save() {
-  localStorage.setItem('rxp_guests', JSON.stringify(guests));
-  localStorage.setItem('rxp_log',    JSON.stringify(admLog));
-  localStorage.setItem('rxp_evt',    JSON.stringify(evtInfo));
+  localStorage.setItem('rxp_guests_' + currentProfile, JSON.stringify(guests));
+  localStorage.setItem('rxp_log_' + currentProfile,    JSON.stringify(admLog));
+  localStorage.setItem('rxp_settings_' + currentProfile, JSON.stringify(settings));
+  localStorage.setItem('rxp_current_profile', currentProfile);
 }
 
 function uid() { return 'RX-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2,3).toUpperCase(); }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+function applySettings() {
+  document.getElementById('display-event-name').textContent = settings.name;
+  document.getElementById('display-event-date').textContent = settings.date;
+  document.getElementById('set-event-name').value = settings.name;
+  document.getElementById('set-event-date').value = settings.date;
+  document.getElementById('set-admin-pin').value = settings.pin;
+  document.getElementById('set-event-profile').value = currentProfile;
+}
+
+function toggleTheme() {
+  const body = document.body;
+  const newTheme = body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  body.setAttribute('data-theme', newTheme);
+  localStorage.setItem('rxp_theme', newTheme);
+}
+
+function tryAccessAdmin() {
+  if (!settings.pin || isAdminAuthenticated) {
+    showPage('admin');
+    return;
+  }
+  const pass = prompt('Enter Admin PIN:');
+  if (pass === settings.pin) {
+    isAdminAuthenticated = true;
+    showPage('admin');
+  } else if (pass !== null) {
+    showToast('Incorrect PIN');
+  }
+}
+
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const tabs = ['admin','scanner','log'];
-  document.querySelectorAll('.tab-btn')[tabs.indexOf(id)].classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+  
   if (id === 'log') renderLog();
   if (id === 'scanner') updateScannerStats();
   if (id !== 'scanner' && scannerRunning) stopScanner();
   window.scrollTo(0,0);
 }
 
-function addGuest(nameOverride) {
-  const inp = document.getElementById('guest-input');
-  const name = (nameOverride || inp.value).trim();
+function addGuest() {
+  const nameInp = document.getElementById('guest-input');
+  const plusInp = document.getElementById('guest-plus-ones');
+  const name = nameInp.value.trim();
+  const plusOnes = parseInt(plusInp.value) || 0;
+  
   if (!name) return;
-  guests.push({ id: uid(), name, checkedIn: false, checkedAt: null });
-  if (!nameOverride) inp.value = '';
+  guests.push({ id: uid(), name, plusOnes, checkedIn: false, checkedAt: null, countIn: 0 });
+  nameInp.value = '';
+  plusInp.value = '0';
   save(); renderGuests();
   showToast('Added: ' + name);
-}
-
-function bulkImport() {
-  const lines = document.getElementById('bulk-input').value.split('\n').map(s => s.trim()).filter(Boolean);
-  if (!lines.length) return;
-  lines.forEach(n => guests.push({ id: uid(), name: n, checkedIn: false, checkedAt: null }));
-  document.getElementById('bulk-input').value = '';
-  save(); renderGuests();
-  showToast(lines.length + ' guests imported');
-}
-
-function removeGuest(id) {
-  if(!confirm('Remove this guest?')) return;
-  guests = guests.filter(g => g.id !== id);
-  save(); renderGuests();
-}
-
-function clearAll() {
-  if (!confirm('Clear all data?')) return;
-  guests = []; admLog = [];
-  save(); renderGuests();
-  showToast('Cleared');
 }
 
 function renderGuests() {
@@ -698,7 +785,7 @@ function renderGuests() {
   tbody.innerHTML = list.map((g) => `
     <tr>
       <td>
-        <div class="guest-name-cell">${esc(g.name)}</div>
+        <div class="guest-name-cell">${esc(g.name)} ${g.plusOnes > 0 ? `<small style="color:var(--gold)">+${g.plusOnes}</small>` : ''}</div>
         <div class="guest-id-cell">${esc(g.id)}</div>
       </td>
       <td>
@@ -721,6 +808,7 @@ function showQR(id) {
   if (!g) return;
   currentModalGuest = g;
   document.getElementById('modal-guest-name').textContent = g.name;
+  document.getElementById('modal-guest-plus').textContent = g.plusOnes > 0 ? `Plus ${g.plusOnes} Guests` : '';
   document.getElementById('modal-guest-id').textContent = g.id;
   const box = document.getElementById('modal-qr-wrap');
   box.innerHTML = '';
@@ -728,10 +816,7 @@ function showQR(id) {
   document.getElementById('qr-modal').classList.add('open');
 }
 
-function closeModal() {
-  document.getElementById('qr-modal').classList.remove('open');
-  currentModalGuest = null;
-}
+function closeModal() { document.getElementById('qr-modal').classList.remove('open'); currentModalGuest = null; }
 
 function downloadQR() {
   const canvas = document.querySelector('#modal-qr-wrap canvas');
@@ -740,33 +825,24 @@ function downloadQR() {
   link.download = 'QR_' + currentModalGuest.name.replace(/\s+/g,'_') + '.png';
   link.href = canvas.toDataURL('image/png');
   link.click();
-  showToast('Downloaded');
 }
 
-function updateScannerStats() {
-  const checked = guests.filter(g => g.checkedIn).length;
-  document.getElementById('s-total').textContent = guests.length;
-  document.getElementById('s-checked').textContent = checked;
+function shareWhatsApp() {
+  if (!currentModalGuest) return;
+  const text = encodeURIComponent(`Hi ${currentModalGuest.name}! Here is your entry code for ${settings.name}. Please show this at the door: ${currentModalGuest.id}`);
+  window.open(`https://wa.me/?text=${text}`, '_blank');
 }
 
-function toggleScanner() {
-  scannerRunning ? stopScanner() : startScanner();
-}
+function toggleScanner() { scannerRunning ? stopScanner() : startScanner(); }
 
 function startScanner() {
   if (!scanner) scanner = new Html5Qrcode('reader');
-  scanner.start(
-    { facingMode: 'environment' },
-    { fps: 15, qrbox: { width: 250, height: 250 } },
-    onScanSuccess,
-    () => {}
-  ).then(() => {
+  scanner.start({ facingMode: 'environment' }, { fps: 15, qrbox: 250 }, onScanSuccess, () => {})
+  .then(() => {
     scannerRunning = true;
     document.getElementById('scan-toggle-btn').textContent = 'Stop Camera';
     document.getElementById('scanner-frame').classList.add('active-scan');
-  }).catch(() => {
-    showToast('Camera Error');
-  });
+  }).catch(() => showToast('Camera Error'));
 }
 
 function stopScanner() {
@@ -782,55 +858,64 @@ function stopScanner() {
 async function scanFromGallery(event) {
   const file = event.target.files[0];
   if (!file) return;
-  
   if (!scanner) scanner = new Html5Qrcode('reader');
-  
-  showToast('Processing image...');
   try {
     const result = await scanner.scanFile(file, true);
     onScanSuccess(result);
   } catch (err) {
-    showResult('fail', '❌', 'Scan Failed', 'No QR code found in this image.');
+    showResult('fail', '❌', 'Scan Failed', 'No QR code found.');
+    playSnd('fail');
   }
-  event.target.value = ''; // Reset input
+  event.target.value = '';
 }
 
-let lastScan = ''; let lastScanTime = 0;
 function onScanSuccess(text) {
-  const now = Date.now();
-  if (text === lastScan && now - lastScanTime < 3000) return;
-  lastScan = text; lastScanTime = now;
-  verifyCode(text);
+  const id = text.split('||')[0].trim();
+  const g = guests.find(x => x.id === id);
+  if (!g) { 
+    showResult('fail','❌','Invalid','Code not recognized.'); 
+    playSnd('fail');
+    return; 
+  }
+  checkIn(g);
 }
 
 function manualVerify() {
   const val = document.getElementById('manual-input').value.trim();
-  if (!val) return;
   const g = guests.find(g => g.id === val) || guests.find(g => g.name.toLowerCase() === val.toLowerCase());
-  if (!g) { showResult('fail','❌','Not Found','No guest matches this input.'); return; }
+  if (!g) { showResult('fail','❌','Not Found','No guest matches.'); playSnd('fail'); return; }
   checkIn(g);
   document.getElementById('manual-input').value = '';
 }
 
-function verifyCode(text) {
-  // Use trim() to handle hidden characters/spaces from scanners
-  const id = text.split('||')[0].trim();
-  const g = guests.find(x => x.id === id);
-  if (!g) { showResult('fail','❌','Invalid','This code is not recognized.'); return; }
-  checkIn(g);
-}
-
 function checkIn(g) {
   if (g.checkedIn) {
-    showResult('used','⚠️','Already In', esc(g.name) + ' entered at ' + g.checkedAt);
+    showResult('used','⚠️','Already In', `${g.name} entered at ${g.checkedAt}`);
+    playSnd('fail');
     return;
   }
+  
+  let count = 1;
+  if (g.plusOnes > 0) {
+    const input = prompt(`${g.name} has +${g.plusOnes} guests. How many are arriving?`, g.plusOnes + 1);
+    count = parseInt(input) || 1;
+  }
+  
   const now = new Date();
   g.checkedIn = true;
+  g.countIn = count;
   g.checkedAt = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  admLog.unshift({ id: g.id, name: g.name, time: g.checkedAt, date: now.toLocaleDateString() });
+  admLog.unshift({ id: g.id, name: g.name, time: g.checkedAt, date: now.toLocaleDateString(), count: count });
+  
   save(); renderGuests(); updateScannerStats();
-  showResult('success','✅','Welcome!', esc(g.name));
+  showResult('success','✅','Welcome!', `${g.name} (${count} people)`);
+  playSnd('success');
+  if (navigator.vibrate) navigator.vibrate(200);
+}
+
+function playSnd(type) {
+  const s = document.getElementById('snd-' + type);
+  if (s) { s.currentTime = 0; s.play().catch(()=>{}); }
 }
 
 function showResult(type, icon, title, detail) {
@@ -840,54 +925,88 @@ function showResult(type, icon, title, detail) {
     <div class="result-title">${title}</div>
     <div class="result-name">${detail}</div>
   </div>`;
-  
   const frame = document.getElementById('scanner-frame');
   if (frame) {
     frame.style.borderColor = type === 'success' ? 'var(--green)' : (type === 'used' ? 'var(--amber)' : 'var(--red)');
-    setTimeout(() => { 
-      frame.style.borderColor = scannerRunning ? 'var(--gold)' : 'var(--border2)';
-    }, 3000);
+    setTimeout(() => { frame.style.borderColor = scannerRunning ? 'var(--gold)' : 'var(--border2)'; }, 3000);
   }
+}
+
+function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function saveSettings() {
+  settings.name = document.getElementById('set-event-name').value || 'Reception Pro';
+  settings.date = document.getElementById('set-event-date').value || 'Guest Verification';
+  settings.pin = document.getElementById('set-admin-pin').value;
+  save(); applySettings(); closeSettings();
+  showToast('Settings Saved');
+}
+
+function switchProfile(p) {
+  currentProfile = p;
+  guests = JSON.parse(localStorage.getItem('rxp_guests_' + p) || '[]');
+  admLog  = JSON.parse(localStorage.getItem('rxp_log_' + p)   || '[]');
+  settings = JSON.parse(localStorage.getItem('rxp_settings_' + p) || '{"name":"Reception Pro","date":"Guest Verification","pin":""}');
+  isAdminAuthenticated = false;
+  save(); applySettings(); renderGuests();
+  showPage('admin');
+  showToast('Switched to ' + p);
+}
+
+function exportToExcel() {
+  const data = guests.map(g => ({ ID: g.id, Name: g.name, PlusOnes: g.plusOnes, Status: g.checkedIn ? 'In' : 'Wait', Time: g.checkedAt || '-' }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Guests");
+  XLSX.writeFile(wb, `${settings.name}_GuestList.xlsx`);
+}
+
+function importFromExcel(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, {type: 'array'});
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet);
+    json.forEach(row => {
+      guests.push({ id: uid(), name: row.Name || row.name || 'Unknown', plusOnes: parseInt(row.PlusOnes || row.plusones || 0), checkedIn: false, checkedAt: null });
+    });
+    save(); renderGuests(); showToast(`Imported ${json.length} guests`);
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function renderLog() {
   const container = document.getElementById('log-tbody');
-  const empty = document.getElementById('log-empty');
-  if (!admLog.length) { container.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
+  if (!admLog.length) { container.innerHTML = ''; document.getElementById('log-empty').style.display = 'block'; return; }
+  document.getElementById('log-empty').style.display = 'none';
   container.innerHTML = admLog.map(l => `
     <div style="padding:1rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center">
-      <div>
-        <div style="font-weight:600; font-size:0.9rem">${esc(l.name)}</div>
-        <div style="font-size:0.7rem; color:var(--muted)">${l.id}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-weight:700; color:var(--gold); font-size:0.8rem">${l.time}</div>
-        <div style="font-size:0.6rem; color:var(--muted)">${l.date}</div>
-      </div>
-    </div>
-  `).join('');
+      <div><div style="font-weight:600">${esc(l.name)} (${l.count})</div><div style="font-size:0.7rem; color:var(--muted)">${l.id}</div></div>
+      <div style="text-align:right"><div style="font-weight:700; color:var(--gold)">${l.time}</div><div style="font-size:0.6rem">${l.date}</div></div>
+    </div>`).join('');
 }
 
 function exportLog() {
-  if (!admLog.length) return;
-  let csv = 'ID,Name,Time,Date\n' + admLog.map(l => `"${l.id}","${l.name}","${l.time}","${l.date}"`).join('\n');
+  let csv = 'ID,Name,Count,Time,Date\n' + admLog.map(l => `"${l.id}","${l.name}","${l.count}","${l.time}","${l.date}"`).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'Entry_Log_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Entry_Log.csv';
   a.click();
 }
 
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
 // Init
+const savedTheme = localStorage.getItem('rxp_theme') || 'light';
+document.body.setAttribute('data-theme', savedTheme);
+applySettings();
 renderGuests();
 </script>
 </body>
