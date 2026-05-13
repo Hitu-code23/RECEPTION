@@ -778,6 +778,19 @@ function addGuest() {
   save(); renderGuests(); showToast('Added: ' + name);
 }
 
+function removeGuest(id) {
+  if(!confirm('Remove this guest?')) return;
+  guests = guests.filter(g => g.id !== id);
+  save(); renderGuests();
+}
+
+function clearAll() {
+  if (!confirm('Clear all data for this event?')) return;
+  guests = []; admLog = [];
+  save(); renderGuests();
+  showToast('Cleared');
+}
+
 function renderGuests() {
   const query = (document.getElementById('search-input')?.value || '').toLowerCase();
   const checked = guests.filter(g => g.checkedIn).length;
