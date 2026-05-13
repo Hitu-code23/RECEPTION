@@ -806,28 +806,45 @@ function clearAll() {
 
 function renderGuests() {
   const query = (document.getElementById('search-input')?.value || '').toLowerCase();
-  const checked = guests.filter(g => g.checkedIn).length;
-  document.getElementById('stat-total').textContent = guests.length;
-  document.getElementById('stat-checked').textContent = checked;
+  
+  // Calculate total headcounts
+  const totalPeople = guests.reduce((sum, g) => sum + (g.plusOnes + 1), 0);
+  const checkedPeople = guests.filter(g => g.checkedIn).reduce((sum, g) => sum + (g.countIn || 0), 0);
+  
+  document.getElementById('stat-total').textContent = totalPeople;
+  document.getElementById('stat-checked').textContent = checkedPeople;
+  
   let list = guests.filter(g => !query || g.name.toLowerCase().includes(query) || g.id.toLowerCase().includes(query));
   const tbody = document.getElementById('guest-tbody');
   const empty = document.getElementById('guest-empty');
+  
   if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
-  tbody.innerHTML = list.map((g) => `
+  
+  tbody.innerHTML = list.map((g) => {
+    const totalGroup = g.plusOnes + 1;
+    return `
     <tr>
       <td>
-        <div class="guest-name-cell">${esc(g.name)} ${g.plusOnes > 0 ? `<small style="color:var(--gold)">+${g.plusOnes}</small>` : ''}</div>
+        <div class="guest-name-cell">${esc(g.name)}</div>
+        <div style="font-size:0.65rem; color:var(--gold); font-weight:600">
+          TOTAL: ${totalGroup} ${totalGroup > 1 ? 'PEOPLE' : 'PERSON'}
+        </div>
         <div class="guest-id-cell">${esc(g.id)}</div>
       </td>
-      <td><span class="badge ${g.checkedIn ? 'badge-checked' : 'badge-pending'}"><span class="badge-dot"></span>${g.checkedIn ? 'In' : 'Wait'}</span></td>
+      <td>
+        <span class="badge ${g.checkedIn ? 'badge-checked' : 'badge-pending'}">
+          <span class="badge-dot"></span>${g.checkedIn ? 'In (' + g.countIn + ')' : 'Wait'}
+        </span>
+      </td>
       <td style="text-align:right">
         <div style="display:flex; gap:0.4rem; justify-content:flex-end">
           <button class="btn-icon" onclick="showQR('${g.id}')">🎟</button>
           <button class="btn-icon" onclick="removeGuest('${g.id}')" style="color:var(--red)">✕</button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function showQR(id) {
@@ -1154,9 +1171,10 @@ function showToast(msg) {
 }
 
 function updateScannerStats() {
-  const checked = guests.filter(g => g.checkedIn).length;
-  document.getElementById('s-total').textContent = guests.length;
-  document.getElementById('s-checked').textContent = checked;
+  const totalPeople = guests.reduce((sum, g) => sum + (g.plusOnes + 1), 0);
+  const checkedPeople = guests.filter(g => g.checkedIn).reduce((sum, g) => sum + (g.countIn || 0), 0);
+  document.getElementById('s-total').textContent = totalPeople;
+  document.getElementById('s-checked').textContent = checkedPeople;
 }
 
 // Init
