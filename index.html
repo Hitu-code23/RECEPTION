@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Reception Elite — Guest Verification Portal (Supabase)</title>
+<title>Reception Elite — Guest Verification Portal</title>
 <link rel="manifest" href="data:application/manifest+json,{'name':'Reception Elite','short_name':'Reception','start_url':'.','display':'standalone','background_color':'#1e1a14','theme_color':'#b8922a'}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,7 +12,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ── RESET & ROOT ─────────────────────────────────────────── */
@@ -447,7 +446,7 @@ body {
 .result-fail { background: var(--redBg); border: 2px solid var(--redBd); color: var(--red); }
 .result-used { background: var(--amberBg); border: 2px solid var(--amberBd); color: var(--amber); }
 .result-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-.result-title { font-family: 'Libre Baskerville', serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.2rem; }
+.result-title { font-family: 'Libre Baskerville', serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
 .result-name { font-size: 0.9rem; font-weight: 500; opacity: 0.8; }
 
 /* ── UTILS ──────────────────────────────────────────────────── */
@@ -704,11 +703,6 @@ body {
 <audio id="snd-fail" src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3"></audio>
 
 <script>
-// --- SUPABASE CONFIGURATION ---
-const SUPABASE_URL = 'https://bzhjfpinlzdaanbvfave.supabase.co/rest/v1/'; // Replace with your URL
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6aGpmcGlubHpkYWFuYnZmYXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NjM4MDYsImV4cCI6MjA5NDIzOTgwNn0.R2IbXysahTVrZ8ng-FwhpHrlQ3Gy4ArUfZkfc-E8iQk'; // Replace with your Anon Key
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 let currentProfile = localStorage.getItem('rxp_current_profile') || 'default';
 let guests = [];
 let admLog  = [];
@@ -718,57 +712,21 @@ let scanner = null, scannerRunning = false;
 let currentModalGuest = null;
 let isAdminAuthenticated = false;
 
-// --- DATA SYNC FUNCTIONS ---
+// --- DATA PERSISTENCE FUNCTIONS ---
 
-async function loadData() {
-  showToast('Syncing with Cloud...');
-  
-  // Load Guests
-  const { data: guestsData, error: gError } = await supabase
-    .from('guests')
-    .select('*')
-    .eq('profile', currentProfile);
-  
-  if (!gError) {
-    guests = guestsData.map(g => ({
-      id: g.id,
-      name: g.name,
-      plusOnes: g.plus_ones,
-      checkedIn: g.checked_in,
-      checkedAt: g.checked_at,
-      countIn: g.count_in
-    }));
-  }
+function saveData() {
+  localStorage.setItem('rxp_guests_' + currentProfile, JSON.stringify(guests));
+  localStorage.setItem('rxp_logs_' + currentProfile, JSON.stringify(admLog));
+}
 
-  // Load Logs
-  const { data: logsData, error: lError } = await supabase
-    .from('logs')
-    .select('*')
-    .eq('profile', currentProfile)
-    .order('created_at', { ascending: false });
+function loadData() {
+  showToast('Loading Data...');
+  guests = JSON.parse(localStorage.getItem('rxp_guests_' + currentProfile) || '[]');
+  admLog = JSON.parse(localStorage.getItem('rxp_logs_' + currentProfile) || '[]');
   
-  if (!lError) {
-    admLog = logsData;
-  }
-
   renderGuests();
   updateScannerStats();
 }
-
-// Set up real-time listeners
-supabase
-  .channel('public:guests')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' }, payload => {
-    loadData(); // Reload all data when something changes
-  })
-  .subscribe();
-
-supabase
-  .channel('public:logs')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'logs' }, payload => {
-    loadData();
-  })
-  .subscribe();
 
 function uid() { return 'RX-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2,3).toUpperCase(); }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -792,10 +750,6 @@ function toggleTheme() {
 
 function tryAccessAdmin() {
   if (isAdminAuthenticated) { showPage('admin'); return; }
-  if (settings.pin !== "788862") {
-    settings.pin = "788862";
-    localStorage.setItem('rxp_settings_' + currentProfile, JSON.stringify(settings));
-  }
   const pass = prompt('Enter Admin PIN:');
   if (pass === settings.pin) { 
     isAdminAuthenticated = true; 
@@ -807,7 +761,7 @@ function tryAccessAdmin() {
 
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   document.getElementById('tab-' + id).classList.add('active');
   if (id === 'log') renderLog();
@@ -816,7 +770,7 @@ function showPage(id) {
   window.scrollTo(0,0);
 }
 
-async function addGuest() {
+function addGuest() {
   const nameInp = document.getElementById('guest-input');
   const plusInp = document.getElementById('guest-plus-ones');
   const name = nameInp.value.trim();
@@ -826,33 +780,37 @@ async function addGuest() {
   const newGuest = { 
     id: uid(), 
     name: name, 
-    plus_ones: plusOnes, 
-    checked_in: false, 
-    checked_at: null, 
-    count_in: 0,
-    profile: currentProfile
+    plusOnes: plusOnes, 
+    checkedIn: false, 
+    checkedAt: null, 
+    countIn: 0
   };
 
-  const { error } = await supabase.from('guests').insert([newGuest]);
+  guests.push(newGuest);
+  saveData();
   
-  if (error) {
-    showToast('Error adding guest');
-  } else {
-    nameInp.value = ''; plusInp.value = '0';
-    showToast('Added: ' + name);
-  }
+  nameInp.value = ''; plusInp.value = '0';
+  showToast('Added: ' + name);
+  renderGuests();
+  updateScannerStats();
 }
 
-async function removeGuest(id) {
+function removeGuest(id) {
   if(!confirm('Remove this guest?')) return;
-  const { error } = await supabase.from('guests').delete().eq('id', id);
-  if (error) showToast('Error removing guest');
+  guests = guests.filter(g => g.id !== id);
+  saveData();
+  renderGuests();
+  updateScannerStats();
+  showToast('Guest removed');
 }
 
-async function clearAll() {
+function clearAll() {
   if (!confirm('Clear all data for this event?')) return;
-  await supabase.from('guests').delete().eq('profile', currentProfile);
-  await supabase.from('logs').delete().eq('profile', currentProfile);
+  guests = [];
+  admLog = [];
+  saveData();
+  renderGuests();
+  updateScannerStats();
   showToast('Cleared');
 }
 
@@ -1088,23 +1046,24 @@ async function checkIn(g, forceCount = null) {
   const checkedAt = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
   const checkedDate = now.toLocaleDateString();
 
-  // Update Guest in Supabase
-  await supabase.from('guests').update({ 
-    checked_in: true, 
-    count_in: count, 
-    checked_at: checkedAt 
-  }).eq('id', g.id);
+  // Update Guest object
+  g.checkedIn = true;
+  g.countIn = count;
+  g.checkedAt = checkedAt;
 
-  // Add Log to Supabase
-  await supabase.from('logs').insert([{
+  // Add Log entry
+  admLog.unshift({
     guest_id: g.id,
     name: g.name,
     time: checkedAt,
     date: checkedDate,
     count: count,
-    photo: photo,
-    profile: currentProfile
-  }]);
+    photo: photo
+  });
+  
+  saveData();
+  renderGuests();
+  updateScannerStats();
   
   showResult('success','✅','Welcome!', `${g.name} (${count} people)`);
   playSnd('success');
@@ -1141,13 +1100,13 @@ function saveSettings() {
   applySettings(); closeSettings(); showToast('Settings Saved');
 }
 
-async function switchProfile(p) {
+function switchProfile(p) {
   currentProfile = p;
   localStorage.setItem('rxp_current_profile', p);
   settings = JSON.parse(localStorage.getItem('rxp_settings_' + p) || '{"name":"Reception Elite","date":"Guest Verification","pin":"","photo":true}');
   isAdminAuthenticated = false;
   applySettings();
-  await loadData();
+  loadData();
   showPage('admin');
   showToast('Switched to ' + p);
 }
@@ -1160,10 +1119,10 @@ function exportToExcel() {
   XLSX.writeFile(wb, `${settings.name}_GuestList.xlsx`);
 }
 
-async function importFromExcel(event) {
+function importFromExcel(event) {
   const file = event.target.files[0];
   const reader = new FileReader();
-  reader.onload = async (e) => {
+  reader.onload = (e) => {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, {type: 'array'});
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -1172,12 +1131,16 @@ async function importFromExcel(event) {
     const newGuests = json.map(row => ({
       id: uid(),
       name: row.Name || row.name || 'Unknown',
-      plus_ones: parseInt(row.PlusOnes || row.plusones || 0),
-      checked_in: false,
-      profile: currentProfile
+      plusOnes: parseInt(row.PlusOnes || row.plusones || 0),
+      checkedIn: false,
+      checkedAt: null,
+      countIn: 0
     }));
 
-    await supabase.from('guests').insert(newGuests);
+    guests = guests.concat(newGuests);
+    saveData();
+    renderGuests();
+    updateScannerStats();
     showToast(`Imported ${json.length} guests`);
   };
   reader.readAsArrayBuffer(file);
@@ -1214,15 +1177,19 @@ function exportLog() {
 
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+  if (t) {
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
 }
 
 function updateScannerStats() {
   const totalPeople = guests.reduce((sum, g) => sum + (g.plusOnes + 1), 0);
   const checkedPeople = guests.filter(g => g.checkedIn).reduce((sum, g) => sum + (g.countIn || 0), 0);
   document.getElementById('s-total').textContent = totalPeople;
+  document.getElementById('stat-total').textContent = totalPeople;
   document.getElementById('s-checked').textContent = checkedPeople;
+  document.getElementById('stat-checked').textContent = checkedPeople;
 }
 
 // Init
