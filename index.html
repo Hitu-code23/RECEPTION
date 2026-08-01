@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Marcus &mdash; Bennet</title>
+    <title>Hitin Banga &mdash; Digital Crafter</title>
 
-    <!-- Webfont: Helvetica Neue ME (async print&rarr;all load pattern) -->
+    <!-- Webfont: Helvetica Neue ME (async print→all load pattern) -->
     <link
       rel="stylesheet"
       type="text/css"
@@ -14,7 +14,7 @@
       href="https://db.onlinewebfonts.com/c/95cecf452d3208890088a5b4c19c7ecf?family=Helvetica+Neue+ME"
     />
 
-    <!-- Tailwind CSS (Play CDN, JIT) -->
+    <!-- Tailwind CSS (Play CDN, JIT ) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -33,7 +33,7 @@
       };
     </script>
 
-    <!-- React + ReactDOM (UMD) -->
+    <!-- React + ReactDOM (UMD ) -->
     <script
       src="https://unpkg.com/react@18/umd/react.production.min.js"
       crossorigin
@@ -63,7 +63,7 @@
       /* ---------- Marquee ---------- */
       @keyframes marquee-scroll {
         from {
-          transform: translateX(0);
+          transform: translateX(0 );
         }
         to {
           transform: translateX(-50%);
@@ -156,16 +156,26 @@
     <script type="text/babel" data-presets="react">
       const { useEffect, useState } = React;
 
+      // Background image - using a gradient background for elegant minimal look
       const BG_IMAGE =
+        "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)";
+
+      // Hero portrait image - your photo
+      const FRONT_IMAGE =
         "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260729_022513_486985a2-ac8c-4278-91a8-071dcd9fcaff.png&w=1280&q=85";
 
-      const FRONT_IMAGE =
-        "https://stone-expand-60400629.figma.site/_assets/v11/8da570354e86aa0d44ac3e4aa335a72c8e750d68.png";
+      const NAV_LINKS = [
+        { label: "Velorien", url: "https://hitu-code23.github.io/Velorien/" },
+        { label: "Architecture", url: "https://hitu-code23.github.io/Architecture-/" },
+        { label: "Contact", url: "#" },
+      ];
+      const SOCIAL_LINKS = [
+        { label: "GitHub", url: "#" },
+        { label: "LinkedIn", url: "#" },
+        { label: "Twitter", url: "#" },
+      ];
 
-      const NAV_LINKS = ["Story", "Jobs", "Message"];
-      const SOCIAL_LINKS = ["Instagram", "TikTok", "YouTube"];
-
-      const EASE_DRAWER = "cubic-bezier(0.76, 0, 0.24, 1)";
+      const EASE_DRAWER = "cubic-bezier(0.76, 0, 0.24, 1 )";
 
       function XIcon({ size = 26, strokeWidth = 1.5 }) {
         return (
@@ -189,7 +199,7 @@
         const [drawerOpen, setDrawerOpen] = useState(false);
 
         useEffect(() => {
-          document.title = "Marcus \u2014 Bennet";
+          document.title = "Hitin Banga — Digital Crafter";
         }, []);
 
         useEffect(() => {
@@ -201,11 +211,12 @@
 
         return (
           <section className="relative h-[100dvh] w-full overflow-hidden bg-black">
-            {/* Background image */}
-            <img
-              src={BG_IMAGE}
-              alt=""
-              className="anim-fade-in absolute inset-0 h-full w-full object-cover"
+            {/* Background gradient */}
+            <div
+              className="anim-fade-in absolute inset-0 h-full w-full"
+              style={{
+                background: BG_IMAGE,
+              }}
             />
 
             {/* Marquee name */}
@@ -214,8 +225,8 @@
               style={{ animationDelay: "500ms" }}
             >
               <div className="marquee flex w-max whitespace-nowrap font-hn text-[16vh] leading-none text-cream sm:text-[26vh]">
-                <span className="pr-[6vw]">Marcus &mdash; Bennet&nbsp;</span>
-                <span className="pr-[6vw]">Marcus &mdash; Bennet&nbsp;</span>
+                <span className="pr-[6vw]">Hitin &mdash; Banga&nbsp;</span>
+                <span className="pr-[6vw]">Hitin &mdash; Banga&nbsp;</span>
               </div>
             </div>
 
@@ -225,23 +236,23 @@
             {/* Footer (desktop z-10 / mobile z-30) */}
             <footer className="absolute inset-x-0 bottom-0 z-30 flex items-end justify-between px-6 pb-5 font-hn text-xs leading-relaxed text-cream sm:z-10 sm:px-10 sm:pb-8 sm:text-sm">
               <div className="anim-fade-up" style={{ animationDelay: "1400ms" }}>
-                <p>Visuals Composer</p>
                 <p>Digital Crafter</p>
-                <p>Obsessed by The Office</p>
+                <p>Web Developer</p>
+                <p>Design Enthusiast</p>
               </div>
               <div
                 className="anim-fade-up text-right"
                 style={{ animationDelay: "1550ms" }}
               >
-                <p>A homage to</p>
-                <p>Marcus Holloway</p>
+                <p>Based in</p>
+                <p>India</p>
               </div>
             </footer>
 
             {/* Front portrait cutout */}
             <img
               src={FRONT_IMAGE}
-              alt="Portrait"
+              alt="Hitin Banga Portrait"
               className="anim-rise-in pointer-events-none absolute inset-0 z-20 h-full w-full object-cover"
             />
 
@@ -252,7 +263,7 @@
                 className="anim-fade-up font-hn text-lg tracking-wide text-cream"
                 style={{ animationDelay: "800ms" }}
               >
-                Marcus
+                Hitin
               </a>
 
               <div className="hidden items-start gap-16 sm:flex lg:gap-24">
@@ -264,27 +275,29 @@
                 </span>
 
                 <nav className="flex flex-col gap-0.5 text-sm">
-                  {NAV_LINKS.map((label, i) => (
+                  {NAV_LINKS.map((item, i) => (
                     <a
-                      key={label}
-                      href="#"
+                      key={item.label}
+                      href={item.url}
+                      target={item.url.startsWith("http" ) ? "_blank" : "_self"}
+                      rel={item.url.startsWith("http" ) ? "noopener noreferrer" : ""}
                       className="anim-fade-up text-cream transition-opacity duration-300 hover:opacity-60"
                       style={{ animationDelay: `${1000 + i * 80}ms` }}
                     >
-                      {label}
+                      {item.label}
                     </a>
                   ))}
                 </nav>
 
                 <div className="flex flex-col gap-0.5 text-sm">
-                  {SOCIAL_LINKS.map((label, i) => (
+                  {SOCIAL_LINKS.map((item, i) => (
                     <a
-                      key={label}
-                      href="#"
+                      key={item.label}
+                      href={item.url}
                       className="anim-fade-up text-cream transition-opacity duration-300 hover:opacity-60"
                       style={{ animationDelay: `${1150 + i * 80}ms` }}
                     >
-                      {label}
+                      {item.label}
                     </a>
                   ))}
                 </div>
@@ -363,13 +376,15 @@
                       opacity: drawerOpen ? 1 : 0,
                     }}
                   >
-                    Site Index
+                    Projects
                   </p>
                   <nav className="mt-4 flex flex-col gap-2">
-                    {NAV_LINKS.map((label, i) => (
+                    {NAV_LINKS.map((item, i) => (
                       <a
-                        key={label}
-                        href="#"
+                        key={item.label}
+                        href={item.url}
+                        target={item.url.startsWith("http" ) ? "_blank" : "_self"}
+                        rel={item.url.startsWith("http" ) ? "noopener noreferrer" : ""}
                         className="text-4xl text-cream transition-all duration-500 ease-out"
                         style={{
                           transitionDelay: `${300 + i * 80}ms`,
@@ -379,7 +394,7 @@
                           opacity: drawerOpen ? 1 : 0,
                         }}
                       >
-                        {label}
+                        {item.label}
                       </a>
                     ))}
                   </nav>
@@ -397,10 +412,10 @@
                     Find Me
                   </p>
                   <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-                    {SOCIAL_LINKS.map((label, i) => (
+                    {SOCIAL_LINKS.map((item, i) => (
                       <a
-                        key={label}
-                        href="#"
+                        key={item.label}
+                        href={item.url}
                         className="text-sm text-cream transition-all duration-500 ease-out"
                         style={{
                           transitionDelay: `${550 + i * 60}ms`,
@@ -410,7 +425,7 @@
                           opacity: drawerOpen ? 1 : 0,
                         }}
                       >
-                        {label}
+                        {item.label}
                       </a>
                     ))}
                   </div>
