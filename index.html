@@ -1,1202 +1,428 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Reception Elite — Guest Verification Portal</title>
-<link rel="manifest" href="data:application/manifest+json,{'name':'Reception Elite','short_name':'Reception','start_url':'.','display':'standalone','background_color':'#1e1a14','theme_color':'#b8922a'}">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Reception Elite">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-/* ── RESET & ROOT ─────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-:root {
-  --ink:        #0f0d0a;
-  --ink2:       #1e1a14;
-  --paper:      #faf8f4;
-  --paper2:     #f3efe7;
-  --gold:       #b8922a;
-  --gold2:      #d4aa50;
-  --gold3:      #f0d890;
-  --goldPale:   #fdf5e0;
-  --border:     #e0d8c8;
-  --border2:    #ccc0a0;
-  --muted:      #8a7d64;
-  --green:      #1e5f3e;
-  --greenBg:    #eaf5ee;
-  --greenBd:    #a8d5b8;
-  --red:        #8b1a2a;
-  --redBg:      #fdf0f1;
-  --redBd:      #e8b0b8;
-  --amber:      #8a5c00;
-  --amberBg:    #fdf6e0;
-  --amberBd:    #ddc878;
-  --shadow:     0 2px 16px rgba(0,0,0,0.07);
-  --shadowLg:   0 8px 40px rgba(0,0,0,0.13);
-  --radius:     12px;
-}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marcus &mdash; Bennet</title>
 
-[data-theme="dark"] {
-  --ink:        #f5f0e8;
-  --ink2:       #0f0d0a;
-  --paper:      #1e1a14;
-  --paper2:     #0a0908;
-  --border:     #3a3020;
-  --border2:    #5a5040;
-  --muted:      #a09070;
-  --shadow:     0 2px 16px rgba(0,0,0,0.4);
-}
+    <!-- Webfont: Helvetica Neue ME (async print&rarr;all load pattern) -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="print"
+      onload="this.media='all'"
+      href="https://db.onlinewebfonts.com/c/95cecf452d3208890088a5b4c19c7ecf?family=Helvetica+Neue+ME"
+    />
 
-html { scroll-behavior: smooth; height: 100%; }
+    <!-- Tailwind CSS (Play CDN, JIT) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              cream: "#efeee9",
+            },
+            fontFamily: {
+              hn: ['"Helvetica Neue ME"', "Helvetica", "Arial", "sans-serif"],
+              sans: ['"Helvetica Neue ME"', "Helvetica", "Arial", "sans-serif"],
+              serif: ['"Helvetica Neue ME"', "Helvetica", "Arial", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
 
-body {
-  background: var(--paper2);
-  color: var(--ink);
-  font-family: 'Jost', sans-serif;
-  font-weight: 400;
-  min-height: 100%;
-  line-height: 1.6;
-  overflow-x: hidden;
-  transition: background 0.3s, color 0.3s;
-}
+    <!-- React + ReactDOM (UMD) -->
+    <script
+      src="https://unpkg.com/react@18/umd/react.production.min.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+      crossorigin
+    ></script>
 
-/* ── TOPBAR ─────────────────────────────────────────────────── */
-.topbar {
-  background: var(--ink2);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-}
+    <!-- Babel standalone: in-browser JSX transform -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-.topbar-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-}
+    <style>
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
 
-.topbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  text-decoration: none;
-}
+      body {
+        font-family: "Helvetica Neue ME", Helvetica, Arial, sans-serif;
+        background-color: #000;
+      }
 
-.brand-emblem {
-  width: 30px; height: 30px;
-  border: 1.5px solid var(--gold);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  color: var(--gold);
-  flex-shrink: 0;
-}
+      /* ---------- Marquee ---------- */
+      @keyframes marquee-scroll {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
 
-.brand-text {
-  font-family: 'Libre Baskerville', serif;
-  font-size: 0.85rem;
-  color: #f5f0e8;
-  letter-spacing: 0.05em;
-  line-height: 1.1;
-}
-.brand-text small {
-  display: block;
-  font-family: 'Jost', sans-serif;
-  font-size: 0.55rem;
-  color: var(--gold2);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  font-weight: 500;
-}
+      .marquee {
+        animation: marquee-scroll 30s linear infinite;
+      }
 
-.topbar-tabs {
-  display: flex;
-  background: rgba(0,0,0,0.2);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.topbar-tabs::-webkit-scrollbar { display: none; }
+      /* ---------- Entrance animations ---------- */
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
 
-.tab-btn {
-  flex: 1;
-  background: none;
-  border: none;
-  color: #7a7060;
-  font-family: 'Jost', sans-serif;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.8rem 0.5rem;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  white-space: nowrap;
-  min-width: 80px;
-}
-.tab-btn:active { background: rgba(255,255,255,0.05); }
-.tab-btn.active { color: var(--gold2); border-bottom-color: var(--gold); background: rgba(255,255,255,0.03); }
+      @keyframes rise-in {
+        from {
+          opacity: 0;
+          transform: translateY(4vh) scale(1.03);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
 
-.tab-btn svg { width: 18px; height: 18px; opacity: 0.7; }
-.tab-btn.active svg { opacity: 1; }
+      @keyframes fade-up {
+        from {
+          opacity: 0;
+          transform: translateY(28px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
-/* ── PAGES ──────────────────────────────────────────────────── */
-.page { display: none; animation: fadeIn 0.3s ease; padding-bottom: 4rem; }
-.page.active { display: block; }
-@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+      @keyframes line-grow {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
 
-/* ── PAGE HEADER ────────────────────────────────────────────── */
-.page-header {
-  background: var(--ink2);
-  padding: 1.5rem 1.25rem 1rem;
-  position: relative;
-  overflow: hidden;
-}
-.page-header::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gold), var(--gold2), var(--gold), transparent);
-}
-.page-header-inner { max-width: 1100px; margin: 0 auto; }
+      .anim-fade-in {
+        animation: fade-in 1.2s ease-out both;
+      }
 
-.page-eyebrow {
-  font-size: 0.6rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--gold2);
-  font-weight: 600;
-  margin-bottom: 0.3rem;
-}
-.page-title {
-  font-family: 'Libre Baskerville', serif;
-  font-size: 1.5rem;
-  color: #f5f0e8;
-  font-weight: 700;
-  line-height: 1.2;
-  margin-bottom: 0.3rem;
-}
-.page-desc { font-size: 0.78rem; color: #7a7060; margin-bottom: 1.25rem; }
+      .anim-rise-in {
+        animation: rise-in 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation-delay: 300ms;
+      }
 
-/* ── STAT STRIP ─────────────────────────────────────────────── */
-.stat-strip {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-}
-.stat-cell {
-  background: var(--ink2);
-  padding: 0.75rem 1rem;
-}
-.stat-value {
-  font-family: 'Libre Baskerville', serif;
-  font-size: 1.25rem;
-  color: var(--gold2);
-  line-height: 1;
-  font-weight: 700;
-}
-.stat-label { font-size: 0.55rem; color: #5a5040; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.2rem; font-weight: 600; }
+      .anim-fade-up {
+        animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
 
-/* ── BODY AREA ──────────────────────────────────────────────── */
-.page-body { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+      .anim-line {
+        transform-origin: left;
+        animation: line-grow 1.1s cubic-bezier(0.76, 0, 0.24, 1) both;
+        animation-delay: 1200ms;
+      }
 
-/* ── GRID LAYOUT ────────────────────────────────────────────── */
-.two-col { display: flex; flex-direction: column; gap: 1rem; }
+      /* ---------- Reduced motion ---------- */
+      @media (prefers-reduced-motion: reduce) {
+        .anim-fade-in,
+        .anim-rise-in,
+        .anim-fade-up,
+        .anim-line {
+          animation-duration: 0.01ms !important;
+          animation-delay: 0ms !important;
+        }
 
-/* ── CARDS ──────────────────────────────────────────────────── */
-.card {
-  background: var(--paper);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-.card-head {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-.card-title {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.card-body { padding: 1rem; }
-.card-body.compact { padding: 0.5rem; }
+        .marquee {
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
 
-/* ── INPUTS ─────────────────────────────────────────────────── */
-.field { margin-bottom: 0.8rem; }
-.field label {
-  display: block;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 0.35rem;
-}
-.field input, .field textarea, .field select {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem 0.9rem;
-  font-family: 'Jost', sans-serif;
-  font-size: 1rem;
-  color: var(--ink);
-  background: var(--paper2);
-  outline: none;
-  transition: all 0.2s;
-  -webkit-appearance: none;
-}
-.field input:focus, .field textarea:focus, .field select:focus {
-  border-color: var(--gold);
-  background: var(--paper);
-  box-shadow: 0 0 0 3px rgba(184,146,42,0.1);
-}
+    <script type="text/babel" data-presets="react">
+      const { useEffect, useState } = React;
 
-.input-row { display: flex; gap: 0.5rem; }
-.input-row .field { flex: 1; margin: 0; }
-.input-row .btn-primary { padding: 0 1.25rem; }
+      const BG_IMAGE =
+        "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260729_022513_486985a2-ac8c-4278-91a8-071dcd9fcaff.png&w=1280&q=85";
 
-/* ── BUTTONS ────────────────────────────────────────────────── */
-.btn-primary {
-  background: linear-gradient(135deg, var(--gold), var(--gold2));
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.8rem 1.25rem;
-  font-family: 'Jost', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 12px rgba(184,146,42,0.2);
-}
-.btn-primary:active { transform: scale(0.96); opacity: 0.9; }
+      const FRONT_IMAGE =
+        "https://stone-expand-60400629.figma.site/_assets/v11/8da570354e86aa0d44ac3e4aa335a72c8e750d68.png";
 
-.btn-ghost {
-  background: transparent;
-  color: var(--gold);
-  border: 1.5px solid var(--border2);
-  border-radius: 8px;
-  padding: 0.7rem 1rem;
-  font-family: 'Jost', sans-serif;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.btn-ghost:active { background: var(--goldPale); }
+      const NAV_LINKS = ["Story", "Jobs", "Message"];
+      const SOCIAL_LINKS = ["Instagram", "TikTok", "YouTube"];
 
-.btn-icon {
-  background: var(--paper2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  width: 40px; height: 40px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1rem;
-  color: var(--muted);
-}
-.btn-icon:active { background: var(--border); color: var(--ink); }
+      const EASE_DRAWER = "cubic-bezier(0.76, 0, 0.24, 1)";
 
-/* ── GUEST LIST ─────────────────────────────────────────────── */
-.guest-table { width: 100%; border-collapse: collapse; }
-.guest-table th {
-  font-size: 0.55rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 700;
-  padding: 0.75rem 0.5rem;
-  text-align: left;
-  border-bottom: 2px solid var(--border);
-}
-.guest-table td {
-  padding: 0.85rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.85rem;
-}
-.guest-name-cell { font-weight: 600; color: var(--ink); }
-.guest-id-cell { font-family: monospace; font-size: 0.7rem; color: var(--muted); }
+      function XIcon({ size = 26, strokeWidth = 1.5 }) {
+        return (
+          <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        );
+      }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 20px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.badge-dot { width: 5px; height: 5px; border-radius: 50%; }
-.badge-pending { background: var(--amberBg); color: var(--amber); border: 1px solid var(--amberBd); }
-.badge-pending .badge-dot { background: var(--amber); }
-.badge-checked { background: var(--greenBg); color: var(--green); border: 1px solid var(--greenBd); }
-.badge-checked .badge-dot { background: var(--green); }
+      function App() {
+        const [drawerOpen, setDrawerOpen] = useState(false);
 
-/* ── MODALS ─────────────────────────────────────────────────── */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15, 13, 10, 0.85);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  opacity: 0; pointer-events: none; transition: all 0.3s;
-}
-.modal-overlay.open { opacity: 1; pointer-events: auto; }
-.modal {
-  background: var(--paper);
-  border-radius: var(--radius);
-  width: 100%;
-  max-width: 400px;
-  padding: 2rem;
-  transform: translateY(20px);
-  transition: all 0.3s;
-}
-.modal-overlay.open .modal { transform: translateY(0); }
-.modal-qr-wrap {
-  background: #fff;
-  padding: 1rem;
-  border-radius: 12px;
-  margin: 0 auto 1.5rem;
-  width: fit-content;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-}
+        useEffect(() => {
+          document.title = "Marcus \u2014 Bennet";
+        }, []);
 
-/* ── SCANNER ────────────────────────────────────────────────── */
-.scanner-layout { display: flex; flex-direction: column; gap: 1rem; }
-.scanner-frame {
-  position: relative;
-  aspect-ratio: 1;
-  background: #000;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 4px solid var(--border2);
-  transition: border-color 0.3s;
-}
-.scanner-frame.active-scan { border-color: var(--gold); }
-#reader { width: 100%; height: 100%; }
-.scan-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.scan-reticle {
-  width: 70%; height: 70%;
-  border: 2px solid rgba(255,255,255,0.3);
-  position: relative;
-}
-.scan-line {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--gold);
-  box-shadow: 0 0 10px var(--gold);
-  animation: scan 2s infinite ease-in-out;
-}
-@keyframes scan { 0%, 100% { top: 0%; } 50% { top: 100%; } }
+        useEffect(() => {
+          document.body.style.overflow = drawerOpen ? "hidden" : "";
+          return () => {
+            document.body.style.overflow = "";
+          };
+        }, [drawerOpen]);
 
-/* ── RESULTS ────────────────────────────────────────────────── */
-.result-card {
-  padding: 1.5rem;
-  border-radius: var(--radius);
-  text-align: center;
-  margin-bottom: 1rem;
-  animation: slideDown 0.4s ease;
-}
-@keyframes slideDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
-.result-success { background: var(--greenBg); border: 2px solid var(--greenBd); color: var(--green); }
-.result-fail { background: var(--redBg); border: 2px solid var(--redBd); color: var(--red); }
-.result-used { background: var(--amberBg); border: 2px solid var(--amberBd); color: var(--amber); }
-.result-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
-.result-title { font-family: 'Libre Baskerville', serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
-.result-name { font-size: 0.9rem; font-weight: 500; opacity: 0.8; }
+        return (
+          <section className="relative h-[100dvh] w-full overflow-hidden bg-black">
+            {/* Background image */}
+            <img
+              src={BG_IMAGE}
+              alt=""
+              className="anim-fade-in absolute inset-0 h-full w-full object-cover"
+            />
 
-/* ── UTILS ──────────────────────────────────────────────────── */
-.mt-2 { margin-top: 1rem; }
-.gap-row { display: flex; gap: 0.5rem; }
-.log-photo { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--paper2); border: 1px solid var(--border); }
-
-.theme-toggle {
-  position: fixed;
-  bottom: 1.5rem; right: 1.5rem;
-  width: 48px; height: 48px;
-  background: var(--ink2);
-  color: var(--gold2);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.25rem;
-  box-shadow: var(--shadowLg);
-  z-index: 500;
-  cursor: pointer;
-  border: 1px solid var(--border);
-}
-
-#toast {
-  position: fixed;
-  bottom: 5rem; left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: var(--ink);
-  color: #fff;
-  padding: 0.75rem 1.5rem;
-  border-radius: 30px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  z-index: 2000;
-  transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-  white-space: nowrap;
-  box-shadow: var(--shadowLg);
-}
-#toast.show { transform: translateX(-50%) translateY(0); }
-
-@media (min-width: 768px) {
-  .two-col { flex-direction: row; align-items: flex-start; }
-  .two-col > div { flex: 1; }
-  .page-header { padding: 3rem 2rem 2rem; }
-  .page-title { font-size: 2.5rem; }
-}
-</style>
-</head>
-<body data-theme="light">
-
-<div class="topbar">
-  <div class="topbar-main">
-    <a href="#" class="topbar-brand">
-      <div id="brand-logo-container" class="brand-emblem">R</div>
-      <div class="brand-text">
-        <span id="display-event-name">Reception Elite</span>
-        <small id="display-event-date">Guest Verification</small>
-      </div>
-    </a>
-    <div style="display:flex; gap:0.5rem">
-      <button class="btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
-    </div>
-  </div>
-  <div class="topbar-tabs">
-    <button class="tab-btn active" id="tab-admin" onclick="tryAccessAdmin()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Admin
-    </button>
-    <button class="tab-btn" id="tab-scanner" onclick="showPage('scanner')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
-      Scanner
-    </button>
-    <button class="tab-btn" id="tab-log" onclick="showPage('log')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      Log
-    </button>
-  </div>
-</div>
-
-<div class="page active" id="page-admin">
-  <div class="page-header">
-    <p class="page-eyebrow">Management</p>
-    <h1 class="page-title">Guest List</h1>
-    <div class="stat-strip">
-      <div class="stat-cell"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Guests</div></div>
-      <div class="stat-cell"><div class="stat-value" id="stat-checked">0</div><div class="stat-label">Checked In</div></div>
-    </div>
-  </div>
-
-  <div class="page-body">
-    <div class="two-col">
-      <div class="card">
-        <div class="card-head"><span class="card-title">Registration</span></div>
-        <div class="card-body">
-          <div class="field">
-            <label>Guest Full Name</label>
-            <input type="text" id="guest-input" placeholder="Enter name..." onkeydown="if(event.key==='Enter') addGuest()" />
-          </div>
-          <div class="field">
-            <label>Plus Ones (Group Size)</label>
-            <div class="input-row">
-              <input type="number" id="guest-plus-ones" value="0" min="0" />
-              <button class="btn-primary" onclick="addGuest()">Add Guest</button>
+            {/* Marquee name */}
+            <div
+              className="anim-fade-up absolute inset-x-0 top-[16vh] z-10 overflow-hidden sm:top-[14vh]"
+              style={{ animationDelay: "500ms" }}
+            >
+              <div className="marquee flex w-max whitespace-nowrap font-hn text-[16vh] leading-none text-cream sm:text-[26vh]">
+                <span className="pr-[6vw]">Marcus &mdash; Bennet&nbsp;</span>
+                <span className="pr-[6vw]">Marcus &mdash; Bennet&nbsp;</span>
+              </div>
             </div>
-          </div>
-          <div style="display:flex; gap:0.5rem; margin-top:1rem">
-             <button class="btn-ghost" style="flex:1" onclick="exportToExcel()">Export Excel</button>
-             <button class="btn-ghost" style="flex:1" onclick="document.getElementById('import-excel').click()">Import Excel</button>
-             <input type="file" id="import-excel" accept=".xlsx, .xls, .csv" style="display:none" onchange="importFromExcel(event)">
-          </div>
-        </div>
-      </div>
 
-      <div class="card">
-        <div class="card-head">
-          <span class="card-title">Guests</span>
-          <button class="btn-ghost" onclick="clearAll()" style="color:var(--red); border-color:var(--redBd); padding:0.4rem 0.6rem; font-size:0.6rem">Reset All</button>
-        </div>
-        <div class="card-body compact">
-          <div class="field" style="padding:0.5rem">
-            <input type="text" id="search-input" placeholder="Search guests..." oninput="renderGuests()" />
-          </div>
-          <div style="overflow-x:auto">
-            <table class="guest-table">
-              <tbody id="guest-tbody"></tbody>
-            </table>
-          </div>
-          <div id="guest-empty" style="text-align:center; padding:2rem; color:var(--muted); font-size:0.8rem">No guests found.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+            {/* Cream rule */}
+            <div className="anim-line absolute inset-x-6 bottom-[5.5rem] z-10 h-0.5 bg-cream sm:inset-x-10 sm:bottom-28" />
 
-<div class="page" id="page-scanner">
-  <div class="page-header">
-    <p class="page-eyebrow">Security</p>
-    <h1 class="page-title">Scanner</h1>
-    <div class="stat-strip">
-      <div class="stat-cell"><div class="stat-value" id="s-total">0</div><div class="stat-label">Invited</div></div>
-      <div class="stat-cell"><div class="stat-value" id="s-checked">0</div><div class="stat-label">Admitted</div></div>
-    </div>
-  </div>
+            {/* Footer (desktop z-10 / mobile z-30) */}
+            <footer className="absolute inset-x-0 bottom-0 z-30 flex items-end justify-between px-6 pb-5 font-hn text-xs leading-relaxed text-cream sm:z-10 sm:px-10 sm:pb-8 sm:text-sm">
+              <div className="anim-fade-up" style={{ animationDelay: "1400ms" }}>
+                <p>Visuals Composer</p>
+                <p>Digital Crafter</p>
+                <p>Obsessed by The Office</p>
+              </div>
+              <div
+                className="anim-fade-up text-right"
+                style={{ animationDelay: "1550ms" }}
+              >
+                <p>A homage to</p>
+                <p>Marcus Holloway</p>
+              </div>
+            </footer>
 
-  <div class="page-body">
-    <div class="scanner-layout">
-      <div id="result-area"></div>
-      <div class="scanner-frame" id="scanner-frame">
-        <div id="reader"></div>
-        <div class="scan-overlay">
-          <div class="scan-reticle"><div class="scan-line"></div></div>
-        </div>
-        <video id="snapshot-cam" style="display:none"></video>
-        <canvas id="snapshot-canvas" style="display:none"></canvas>
-      </div>
-      
-      <div style="display:flex; gap:0.5rem">
-        <button class="btn-primary" id="scan-toggle-btn" style="flex:2; padding:1rem" onclick="toggleScanner()">Start Camera</button>
-        <button class="btn-ghost" style="flex:1; border-color:var(--gold); color:var(--gold); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.2rem" onclick="document.getElementById('gallery-input').click()">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <span style="font-size:0.5rem">Gallery</span>
-        </button>
-        <input type="file" id="gallery-input" accept="image/*" style="display:none" onchange="scanFromGallery(event)">
-      </div>
-      
-      <div class="card mt-2">
-        <div class="card-head"><span class="card-title">Manual Entry</span></div>
-        <div class="card-body">
-          <div class="input-row">
-            <input type="text" id="manual-input" placeholder="Guest ID or Name" />
-            <button class="btn-primary" onclick="manualVerify()">Verify</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+            {/* Front portrait cutout */}
+            <img
+              src={FRONT_IMAGE}
+              alt="Portrait"
+              className="anim-rise-in pointer-events-none absolute inset-0 z-20 h-full w-full object-cover"
+            />
 
-<div class="page" id="page-log">
-  <div class="page-header">
-    <p class="page-eyebrow">History</p>
-    <h1 class="page-title">Entry Log</h1>
-    <button class="btn-ghost" onclick="exportLog()" style="margin-top:1rem; color:#fff; border-color:rgba(255,255,255,0.2)">Export CSV</button>
-  </div>
-  <div class="page-body">
-    <div class="card">
-      <div class="card-body compact">
-        <div id="log-tbody"></div>
-        <div id="log-empty" style="text-align:center; padding:2rem; color:var(--muted)">No entries yet.</div>
-      </div>
-    </div>
-  </div>
-</div>
+            {/* Header */}
+            <header className="absolute inset-x-0 top-0 z-30 flex items-start justify-between px-6 pt-6 sm:px-10 sm:pt-8">
+              <a
+                href="#"
+                className="anim-fade-up font-hn text-lg tracking-wide text-cream"
+                style={{ animationDelay: "800ms" }}
+              >
+                Marcus
+              </a>
 
-<div class="modal-overlay" id="qr-modal">
-  <div class="modal">
-    <div style="text-align:center">
-      <div class="modal-qr-wrap" id="modal-qr-wrap"></div>
-      <h2 id="modal-guest-name" style="font-family:'Libre Baskerville',serif; margin-bottom:0.2rem"></h2>
-      <p id="modal-guest-plus" style="font-size:0.7rem; color:var(--gold); font-weight:700; text-transform:uppercase; margin-bottom:0.5rem"></p>
-      <p id="modal-guest-id" style="font-family:monospace; font-size:0.8rem; color:var(--muted); margin-bottom:1.5rem"></p>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem">
-        <button class="btn-ghost" onclick="closeModal()">Close</button>
-        <button class="btn-primary" onclick="downloadQR()">Download QR</button>
-        <button class="btn-primary" style="background:var(--ink); grid-column: span 2" onclick="generatePDFInvite()">Generate PDF Invite</button>
-        <button class="btn-ghost" style="grid-column: span 2; border-color:#25D366; color:#25D366" onclick="shareWhatsApp()">Share on WhatsApp</button>
-      </div>
-    </div>
-  </div>
-</div>
+              <div className="hidden items-start gap-16 sm:flex lg:gap-24">
+                <span
+                  className="anim-fade-up text-sm text-cream"
+                  style={{ animationDelay: "900ms" }}
+                >
+                  2025
+                </span>
 
-<div class="modal-overlay" id="settings-modal">
-  <div class="modal">
-    <h2 style="font-family:'Libre Baskerville',serif; margin-bottom:1.5rem">Elite Settings</h2>
-    
-    <div class="field">
-      <label>Event Name</label>
-      <input type="text" id="set-event-name" placeholder="e.g. Wedding Reception" />
-    </div>
-    <div class="field">
-      <label>Event Date</label>
-      <input type="text" id="set-event-date" placeholder="e.g. May 24, 2024" />
-    </div>
-    <div class="field">
-      <label>Admin PIN (6 digits)</label>
-      <input type="password" id="set-admin-pin" maxlength="6" placeholder="Leave empty for no PIN" />
-    </div>
-    <div class="field">
-      <label>Event Profile</label>
-      <select id="set-event-profile" onchange="switchProfile(this.value)">
-        <option value="default">Main Event</option>
-        <option value="event2">Event 2</option>
-        <option value="event3">Event 3</option>
-      </select>
-    </div>
-    <div class="field">
-      <label style="display:flex; align-items:center; gap:0.5rem">
-        <input type="checkbox" id="set-photo-checkin" style="width:auto" checked>
-        Photo on Check-in
-      </label>
-    </div>
-    
-    <div class="gap-row mt-2" style="justify-content:flex-end">
-      <button class="btn-ghost" onclick="closeSettings()">Cancel</button>
-      <button class="btn-primary" onclick="saveSettings()">Save Changes</button>
-    </div>
-  </div>
-</div>
+                <nav className="flex flex-col gap-0.5 text-sm">
+                  {NAV_LINKS.map((label, i) => (
+                    <a
+                      key={label}
+                      href="#"
+                      className="anim-fade-up text-cream transition-opacity duration-300 hover:opacity-60"
+                      style={{ animationDelay: `${1000 + i * 80}ms` }}
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </nav>
 
-<div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">🌓</div>
-<div id="toast"></div>
+                <div className="flex flex-col gap-0.5 text-sm">
+                  {SOCIAL_LINKS.map((label, i) => (
+                    <a
+                      key={label}
+                      href="#"
+                      className="anim-fade-up text-cream transition-opacity duration-300 hover:opacity-60"
+                      style={{ animationDelay: `${1150 + i * 80}ms` }}
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </header>
 
-<audio id="snd-success" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
-<audio id="snd-fail" src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3"></audio>
+            {/* Mobile hamburger / close toggle */}
+            <button
+              type="button"
+              aria-label={drawerOpen ? "Close menu" : "Open menu"}
+              onClick={() => setDrawerOpen((v) => !v)}
+              className="anim-fade-up fixed right-6 top-6 z-50 flex h-10 w-10 flex-col items-center justify-center gap-[5px] sm:hidden"
+              style={{ animationDelay: "900ms" }}
+            >
+              <span
+                className="h-[1.5px] w-6 bg-cream transition-transform duration-500"
+                style={{
+                  transitionTimingFunction: EASE_DRAWER,
+                  transform: drawerOpen
+                    ? "translateY(6.5px) rotate(45deg)"
+                    : "translateY(0) rotate(0deg)",
+                }}
+              />
+              <span
+                className="h-[1.5px] w-6 bg-cream transition-opacity duration-300"
+                style={{ opacity: drawerOpen ? 0 : 1 }}
+              />
+              <span
+                className="h-[1.5px] w-6 bg-cream transition-transform duration-500"
+                style={{
+                  transitionTimingFunction: EASE_DRAWER,
+                  transform: drawerOpen
+                    ? "translateY(-6.5px) rotate(-45deg)"
+                    : "translateY(0) rotate(0deg)",
+                }}
+              />
+            </button>
 
-<script>
-let currentProfile = localStorage.getItem('rxp_current_profile') || 'default';
-let guests = [];
-let admLog  = [];
-let settings = JSON.parse(localStorage.getItem('rxp_settings_' + currentProfile) || '{"name":"Reception Elite","date":"Guest Verification","pin":"788862","photo":true}');
+            {/* Mobile drawer backdrop */}
+            <div
+              onClick={() => setDrawerOpen(false)}
+              className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-500 sm:hidden ${
+                drawerOpen ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
+            />
 
-let scanner = null, scannerRunning = false;
-let currentModalGuest = null;
-let isAdminAuthenticated = false;
+            {/* Mobile drawer panel */}
+            <div
+              className="fixed inset-y-0 right-0 z-40 w-[80%] max-w-sm bg-[#141414] px-8 py-10 transition-transform duration-[600ms] sm:hidden"
+              style={{
+                transitionTimingFunction: EASE_DRAWER,
+                transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
+              }}
+            >
+              <button
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setDrawerOpen(false)}
+                className="absolute right-6 top-6 text-cream transition-all duration-500"
+                style={{
+                  transitionDelay: drawerOpen ? "300ms" : "0ms",
+                  transform: drawerOpen ? "rotate(0deg)" : "rotate(90deg)",
+                  opacity: drawerOpen ? 1 : 0,
+                }}
+              >
+                <XIcon size={26} strokeWidth={1.5} />
+              </button>
 
-// --- DATA PERSISTENCE FUNCTIONS ---
+              <div className="flex h-full flex-col justify-center gap-14">
+                <div>
+                  <p
+                    className="text-xs uppercase tracking-[0.2em] text-cream/50 transition-all duration-500 ease-out"
+                    style={{
+                      transitionDelay: "250ms",
+                      transform: drawerOpen ? "translateY(0)" : "translateY(8px)",
+                      opacity: drawerOpen ? 1 : 0,
+                    }}
+                  >
+                    Site Index
+                  </p>
+                  <nav className="mt-4 flex flex-col gap-2">
+                    {NAV_LINKS.map((label, i) => (
+                      <a
+                        key={label}
+                        href="#"
+                        className="text-4xl text-cream transition-all duration-500 ease-out"
+                        style={{
+                          transitionDelay: `${300 + i * 80}ms`,
+                          transform: drawerOpen
+                            ? "translateY(0)"
+                            : "translateY(24px)",
+                          opacity: drawerOpen ? 1 : 0,
+                        }}
+                      >
+                        {label}
+                      </a>
+                    ))}
+                  </nav>
+                </div>
 
-function saveData() {
-  localStorage.setItem('rxp_guests_' + currentProfile, JSON.stringify(guests));
-  localStorage.setItem('rxp_logs_' + currentProfile, JSON.stringify(admLog));
-}
+                <div>
+                  <p
+                    className="text-xs uppercase tracking-[0.2em] text-cream/50 transition-all duration-500 ease-out"
+                    style={{
+                      transitionDelay: "500ms",
+                      transform: drawerOpen ? "translateY(0)" : "translateY(8px)",
+                      opacity: drawerOpen ? 1 : 0,
+                    }}
+                  >
+                    Find Me
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+                    {SOCIAL_LINKS.map((label, i) => (
+                      <a
+                        key={label}
+                        href="#"
+                        className="text-sm text-cream transition-all duration-500 ease-out"
+                        style={{
+                          transitionDelay: `${550 + i * 60}ms`,
+                          transform: drawerOpen
+                            ? "translateY(0)"
+                            : "translateY(16px)",
+                          opacity: drawerOpen ? 1 : 0,
+                        }}
+                      >
+                        {label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      }
 
-function loadData() {
-  showToast('Loading Data...');
-  guests = JSON.parse(localStorage.getItem('rxp_guests_' + currentProfile) || '[]');
-  admLog = JSON.parse(localStorage.getItem('rxp_logs_' + currentProfile) || '[]');
-  
-  renderGuests();
-  updateScannerStats();
-}
-
-function uid() { return 'RX-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2,3).toUpperCase(); }
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function applySettings() {
-  document.getElementById('display-event-name').textContent = settings.name;
-  document.getElementById('display-event-date').textContent = settings.date;
-  document.getElementById('set-event-name').value = settings.name;
-  document.getElementById('set-event-date').value = settings.date;
-  document.getElementById('set-admin-pin').value = settings.pin;
-  document.getElementById('set-event-profile').value = currentProfile;
-  document.getElementById('set-photo-checkin').checked = settings.photo;
-}
-
-function toggleTheme() {
-  const body = document.body;
-  const newTheme = body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-  body.setAttribute('data-theme', newTheme);
-  localStorage.setItem('rxp_theme', newTheme);
-}
-
-function tryAccessAdmin() {
-  if (isAdminAuthenticated) { showPage('admin'); return; }
-  const pass = prompt('Enter Admin PIN:');
-  if (pass === settings.pin) { 
-    isAdminAuthenticated = true; 
-    showPage('admin'); 
-  } else if (pass !== null) {
-    showToast('Incorrect PIN');
-  }
-}
-
-function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  document.getElementById('tab-' + id).classList.add('active');
-  if (id === 'log') renderLog();
-  if (id === 'scanner') updateScannerStats();
-  if (id !== 'scanner' && scannerRunning) stopScanner();
-  window.scrollTo(0,0);
-}
-
-function addGuest() {
-  const nameInp = document.getElementById('guest-input');
-  const plusInp = document.getElementById('guest-plus-ones');
-  const name = nameInp.value.trim();
-  const plusOnes = parseInt(plusInp.value) || 0;
-  if (!name) return;
-
-  const newGuest = { 
-    id: uid(), 
-    name: name, 
-    plusOnes: plusOnes, 
-    checkedIn: false, 
-    checkedAt: null, 
-    countIn: 0
-  };
-
-  guests.push(newGuest);
-  saveData();
-  
-  nameInp.value = ''; plusInp.value = '0';
-  showToast('Added: ' + name);
-  renderGuests();
-  updateScannerStats();
-}
-
-function removeGuest(id) {
-  if(!confirm('Remove this guest?')) return;
-  guests = guests.filter(g => g.id !== id);
-  saveData();
-  renderGuests();
-  updateScannerStats();
-  showToast('Guest removed');
-}
-
-function clearAll() {
-  if (!confirm('Clear all data for this event?')) return;
-  guests = [];
-  admLog = [];
-  saveData();
-  renderGuests();
-  updateScannerStats();
-  showToast('Cleared');
-}
-
-function renderGuests() {
-  const query = (document.getElementById('search-input')?.value || '').toLowerCase();
-  
-  const totalPeople = guests.reduce((sum, g) => sum + (g.plusOnes + 1), 0);
-  const checkedPeople = guests.filter(g => g.checkedIn).reduce((sum, g) => sum + (g.countIn || 0), 0);
-  
-  document.getElementById('stat-total').textContent = totalPeople;
-  document.getElementById('stat-checked').textContent = checkedPeople;
-  
-  let list = guests.filter(g => !query || g.name.toLowerCase().includes(query) || g.id.toLowerCase().includes(query));
-  const tbody = document.getElementById('guest-tbody');
-  const empty = document.getElementById('guest-empty');
-  
-  if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  
-  tbody.innerHTML = list.map((g) => {
-    const totalGroup = g.plusOnes + 1;
-    return `
-    <tr>
-      <td>
-        <div class="guest-name-cell">${esc(g.name)}</div>
-        <div style="font-size:0.65rem; color:var(--gold); font-weight:600">
-          TOTAL: ${totalGroup} ${totalGroup > 1 ? 'PEOPLE' : 'PERSON'}
-        </div>
-        <div class="guest-id-cell">${esc(g.id)}</div>
-      </td>
-      <td>
-        <span class="badge ${g.checkedIn ? 'badge-checked' : 'badge-pending'}">
-          <span class="badge-dot"></span>${g.checkedIn ? 'In (' + g.countIn + ')' : 'Wait'}
-        </span>
-      </td>
-      <td style="text-align:right">
-        <div style="display:flex; gap:0.4rem; justify-content:flex-end">
-          <button class="btn-icon" onclick="showQR('${g.id}')">🎟</button>
-          <button class="btn-icon" onclick="removeGuest('${g.id}')" style="color:var(--red)">✕</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function showQR(id) {
-  const g = guests.find(x => x.id === id);
-  if (!g) return;
-  currentModalGuest = g;
-  document.getElementById('modal-guest-name').textContent = g.name;
-  document.getElementById('modal-guest-plus').textContent = g.plusOnes > 0 ? `Plus ${g.plusOnes} Guests` : '';
-  document.getElementById('modal-guest-id').textContent = g.id;
-  const box = document.getElementById('modal-qr-wrap');
-  box.innerHTML = '';
-  new QRCode(box, { text: g.id + '||' + g.name, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
-  document.getElementById('qr-modal').classList.add('open');
-}
-
-function closeModal() { document.getElementById('qr-modal').classList.remove('open'); currentModalGuest = null; }
-
-function downloadQR() {
-  const canvas = document.querySelector('#modal-qr-wrap canvas');
-  if (!canvas || !currentModalGuest) return;
-  const link = document.createElement('a');
-  link.download = 'QR_' + currentModalGuest.name.replace(/\s+/g,'_') + '.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-}
-
-async function generatePDFInvite() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
-  const qrCanvas = document.querySelector('#modal-qr-wrap canvas');
-  if (!qrCanvas || !currentModalGuest) return;
-  
-  showToast('Generating PDF...');
-  doc.setFillColor(250, 248, 244);
-  doc.rect(0, 0, 148, 210, 'F');
-  doc.setDrawColor(184, 146, 42);
-  doc.setLineWidth(1);
-  doc.rect(5, 5, 138, 200);
-  doc.setTextColor(15, 13, 10);
-  doc.setFont('times', 'italic');
-  doc.setFontSize(14);
-  doc.text('You are cordially invited to', 74, 40, { align: 'center' });
-  doc.setFont('times', 'bold');
-  doc.setFontSize(24);
-  doc.text(settings.name, 74, 55, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(settings.date, 74, 65, { align: 'center' });
-  doc.setDrawColor(224, 216, 200);
-  doc.line(40, 75, 108, 75);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text(currentModalGuest.name.toUpperCase(), 74, 90, { align: 'center' });
-  if (currentModalGuest.plusOnes > 0) {
-    doc.setFontSize(10);
-    doc.setTextColor(184, 146, 42);
-    doc.text(`ADMIT GUEST + ${currentModalGuest.plusOnes}`, 74, 98, { align: 'center' });
-  }
-  const qrData = qrCanvas.toDataURL('image/jpeg', 1.0);
-  doc.addImage(qrData, 'JPEG', 44, 110, 60, 60);
-  doc.setTextColor(138, 125, 100);
-  doc.setFontSize(8);
-  doc.text('PLEASE PRESENT THIS CODE AT RECEPTION', 74, 180, { align: 'center' });
-  doc.setFont('courier', 'normal');
-  doc.text(currentModalGuest.id, 74, 185, { align: 'center' });
-  doc.save(`Invite_${currentModalGuest.name.replace(/\s+/g,'_')}.pdf`);
-  showToast('Invitation Ready!');
-}
-
-function shareWhatsApp() {
-  if (!currentModalGuest) return;
-  const text = encodeURIComponent(`Hi ${currentModalGuest.name}! Here is your entry code for ${settings.name}. Please show this at the door: ${currentModalGuest.id}`);
-  window.open(`https://wa.me/?text=${text}`, '_blank');
-}
-
-function toggleScanner() { scannerRunning ? stopScanner() : startScanner(); }
-
-function startScanner() {
-  if (!scanner) scanner = new Html5Qrcode('reader');
-  scanner.start({ facingMode: 'environment' }, { fps: 15, qrbox: 250 }, onScanSuccess, () => {})
-  .then(() => {
-    scannerRunning = true;
-    document.getElementById('scan-toggle-btn').textContent = 'Stop Camera';
-    document.getElementById('scanner-frame').classList.add('active-scan');
-  }).catch(() => showToast('Camera Error'));
-}
-
-function stopScanner() {
-  if (scanner && scannerRunning) {
-    scanner.stop().then(() => {
-      scannerRunning = false;
-      document.getElementById('scan-toggle-btn').textContent = 'Start Camera';
-      document.getElementById('scanner-frame').classList.remove('active-scan');
-    });
-  }
-}
-
-async function scanFromGallery(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  if (!scanner) scanner = new Html5Qrcode('reader');
-  try {
-    const result = await scanner.scanFile(file, true);
-    onScanSuccess(result);
-  } catch (err) {
-    showResult('fail', '❌', 'Scan Failed', 'No QR code found.');
-    playSnd('fail');
-  }
-  event.target.value = '';
-}
-
-function onScanSuccess(text) {
-  const id = text.split('||')[0].trim();
-  const g = guests.find(x => x.id === id);
-  if (!g) { showResult('fail','❌','Invalid','Code not recognized.'); playSnd('fail'); return; }
-  
-  if (g.plusOnes > 0 && !g.checkedIn) {
-    const area = document.getElementById('result-area');
-    area.innerHTML = `
-      <div class="result-card result-success" style="border-color:var(--gold)">
-        <div class="result-title">Group Detected</div>
-        <div class="result-name">${g.name} + ${g.plusOnes}</div>
-        <div style="display:flex; gap:0.5rem; margin-top:1rem">
-          <button class="btn-primary" style="flex:1; font-size:0.6rem" onclick="checkInById('${g.id}', ${g.plusOnes + 1})">All (${g.plusOnes + 1})</button>
-          <button class="btn-ghost" style="flex:1; font-size:0.6rem" onclick="checkInById('${g.id}')">Custom</button>
-        </div>
-      </div>`;
-    playSnd('success');
-    return;
-  }
-  checkIn(g);
-}
-
-function checkInById(id, count) {
-  const g = guests.find(x => x.id === id);
-  if (g) checkIn(g, count);
-}
-
-function manualVerify() {
-  const val = document.getElementById('manual-input').value.trim();
-  const g = guests.find(g => g.id === val) || guests.find(g => g.name.toLowerCase() === val.toLowerCase());
-  if (!g) { showResult('fail','❌','Not Found','No guest matches.'); playSnd('fail'); return; }
-  checkIn(g);
-  document.getElementById('manual-input').value = '';
-}
-
-async function takeSnapshot() {
-  if (!settings.photo) return null;
-  const canvas = document.getElementById('snapshot-canvas');
-  const context = canvas.getContext('2d');
-  const scannerVideo = document.querySelector('#reader video');
-  if (scannerVideo && scannerVideo.readyState >= 2) {
-    canvas.width = scannerVideo.videoWidth || 640;
-    canvas.height = scannerVideo.videoHeight || 480;
-    context.drawImage(scannerVideo, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.6);
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    const tempVideo = document.createElement('video');
-    tempVideo.srcObject = stream;
-    await tempVideo.play();
-    canvas.width = tempVideo.videoWidth || 640;
-    canvas.height = tempVideo.videoHeight || 480;
-    context.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-    stream.getTracks().forEach(track => track.stop());
-    return canvas.toDataURL('image/jpeg', 0.6);
-  } catch (e) {
-    return null;
-  }
-}
-
-async function checkIn(g, forceCount = null) {
-  if (g.checkedIn) {
-    showResult('used','⚠️','Already In', `${g.name} entered at ${g.checkedAt}`);
-    playSnd('fail'); return;
-  }
-  
-  let count = 1;
-  if (forceCount !== null) {
-    count = forceCount;
-  } else if (g.plusOnes > 0) {
-    const input = prompt(`${g.name} has +${g.plusOnes} guests. How many are arriving?`, g.plusOnes + 1);
-    if (input === null) return;
-    count = parseInt(input) || 1;
-  }
-  
-  const photo = await takeSnapshot();
-  const now = new Date();
-  const checkedAt = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  const checkedDate = now.toLocaleDateString();
-
-  // Update Guest object
-  g.checkedIn = true;
-  g.countIn = count;
-  g.checkedAt = checkedAt;
-
-  // Add Log entry
-  admLog.unshift({
-    guest_id: g.id,
-    name: g.name,
-    time: checkedAt,
-    date: checkedDate,
-    count: count,
-    photo: photo
-  });
-  
-  saveData();
-  renderGuests();
-  updateScannerStats();
-  
-  showResult('success','✅','Welcome!', `${g.name} (${count} people)`);
-  playSnd('success');
-  if (navigator.vibrate) navigator.vibrate(200);
-}
-
-function playSnd(type) {
-  const s = document.getElementById('snd-' + type);
-  if (s) { s.currentTime = 0; s.play().catch(()=>{}); }
-}
-
-function showResult(type, icon, title, detail) {
-  const area = document.getElementById('result-area');
-  area.innerHTML = `<div class="result-card result-${type}">
-    <div class="result-icon">${icon}</div>
-    <div class="result-title">${title}</div>
-    <div class="result-name">${detail}</div>
-  </div>`;
-  const frame = document.getElementById('scanner-frame');
-  if (frame) {
-    frame.style.borderColor = type === 'success' ? 'var(--green)' : (type === 'used' ? 'var(--amber)' : 'var(--red)');
-    setTimeout(() => { frame.style.borderColor = scannerRunning ? 'var(--gold)' : 'var(--border2)'; }, 3000);
-  }
-}
-
-function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
-function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
-function saveSettings() {
-  settings.name = document.getElementById('set-event-name').value || 'Reception Elite';
-  settings.date = document.getElementById('set-event-date').value || 'Guest Verification';
-  settings.pin = document.getElementById('set-admin-pin').value;
-  settings.photo = document.getElementById('set-photo-checkin').checked;
-  localStorage.setItem('rxp_settings_' + currentProfile, JSON.stringify(settings));
-  applySettings(); closeSettings(); showToast('Settings Saved');
-}
-
-function switchProfile(p) {
-  currentProfile = p;
-  localStorage.setItem('rxp_current_profile', p);
-  settings = JSON.parse(localStorage.getItem('rxp_settings_' + p) || '{"name":"Reception Elite","date":"Guest Verification","pin":"","photo":true}');
-  isAdminAuthenticated = false;
-  applySettings();
-  loadData();
-  showPage('admin');
-  showToast('Switched to ' + p);
-}
-
-function exportToExcel() {
-  const data = guests.map(g => ({ ID: g.id, Name: g.name, PlusOnes: g.plusOnes, Status: g.checkedIn ? 'In' : 'Wait', Time: g.checkedAt || '-' }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Guests");
-  XLSX.writeFile(wb, `${settings.name}_GuestList.xlsx`);
-}
-
-function importFromExcel(event) {
-  const file = event.target.files[0];
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, {type: 'array'});
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet);
-    
-    const newGuests = json.map(row => ({
-      id: uid(),
-      name: row.Name || row.name || 'Unknown',
-      plusOnes: parseInt(row.PlusOnes || row.plusones || 0),
-      checkedIn: false,
-      checkedAt: null,
-      countIn: 0
-    }));
-
-    guests = guests.concat(newGuests);
-    saveData();
-    renderGuests();
-    updateScannerStats();
-    showToast(`Imported ${json.length} guests`);
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function renderLog() {
-  const container = document.getElementById('log-tbody');
-  if (!admLog.length) { container.innerHTML = ''; document.getElementById('log-empty').style.display = 'block'; return; }
-  document.getElementById('log-empty').style.display = 'none';
-  container.innerHTML = admLog.map(l => `
-    <div style="padding:1rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center">
-      <div style="display:flex; gap:1rem; align-items:center">
-        ${l.photo ? `<img src="${l.photo}" class="log-photo">` : `<div class="log-photo" style="display:flex; align-items:center; justify-content:center; font-size:1.5rem">👤</div>`}
-        <div>
-          <div style="font-weight:600">${esc(l.name)} (${l.count})</div>
-          <div style="font-size:0.7rem; color:var(--muted)">${l.guest_id}</div>
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-weight:700; color:var(--gold)">${l.time}</div>
-        <div style="font-size:0.6rem">${l.date}</div>
-      </div>
-    </div>`).join('');
-}
-
-function exportLog() {
-  let csv = 'ID,Name,Count,Time,Date\n' + admLog.map(l => `"${l.guest_id}","${l.name}","${l.count}","${l.time}","${l.date}"`).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'Entry_Log.csv';
-  a.click();
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  if (t) {
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
-  }
-}
-
-function updateScannerStats() {
-  const totalPeople = guests.reduce((sum, g) => sum + (g.plusOnes + 1), 0);
-  const checkedPeople = guests.filter(g => g.checkedIn).reduce((sum, g) => sum + (g.countIn || 0), 0);
-  document.getElementById('s-total').textContent = totalPeople;
-  document.getElementById('stat-total').textContent = totalPeople;
-  document.getElementById('s-checked').textContent = checkedPeople;
-  document.getElementById('stat-checked').textContent = checkedPeople;
-}
-
-// Init
-const savedTheme = localStorage.getItem('rxp_theme') || 'light';
-document.body.setAttribute('data-theme', savedTheme);
-applySettings();
-loadData();
-</script>
-</body>
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
 </html>
